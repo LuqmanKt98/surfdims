@@ -413,10 +413,19 @@ const App: React.FC = () => {
     const handleAddUsedBoard = useCallback(async (newBoard: Omit<Surfboard, 'id'>, location?: { region: string, suburb: string }) => {
         if (!currentUser) return;
         const newBoardId = `board-${Date.now()}`;
+
+        // Used boards logic: Free, 3 months listing, Unpaid
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days
+
         const boardWithId: Surfboard = {
             ...newBoard,
             id: newBoardId,
-            sellerId: currentUser.id // Ensure sellerId is set
+            sellerId: currentUser.id,
+            status: SurfboardStatus.Live,
+            listedDate: now.toISOString(),
+            expiresAt: expiresAt,
+            isPaid: false
         };
 
         try {
@@ -575,10 +584,19 @@ const App: React.FC = () => {
                 const promises = boardsForPayment.map(async (board) => {
                     const newId = `board-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                     newIds.push(newId);
+
+                    // New/Paid boards logic: Paid, 12 months listing
+                    const now = new Date();
+                    const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 365 days
+
                     const newBoard: Surfboard = {
                         ...board,
                         id: newId,
-                        sellerId: currentUser.id
+                        sellerId: currentUser.id,
+                        status: SurfboardStatus.Live,
+                        listedDate: now.toISOString(),
+                        expiresAt: expiresAt,
+                        isPaid: true
                     };
                     await setDoc(doc(db, "boards", newId), newBoard);
                     return newBoard;

@@ -58,7 +58,7 @@ const FormInput: React.FC<{
 const ListingForm: React.FC<ListingFormProps> = ({ onClose, currentUser, editingBoard, onUpdateBoard, onAddUsedBoard, onStageAndReset, onStageAndPay, stagedCount, totalEntries, onDonateAndList, onOpenLearnMore, onOpenCharityModal }) => {
     const isEditing = !!editingBoard;
 
-    const initialBoardState: Omit<Surfboard, 'id' | 'sellerId' | 'listedDate' | 'status' | 'type'> = {
+    const initialBoardState: Omit<Surfboard, 'id' | 'sellerId' | 'listedDate' | 'status' | 'type' | 'expiresAt' | 'isPaid'> = {
         brand: '',
         model: '',
         dimensions: [{ length: 0, width: 0, thickness: 0, volume: 0 }],

@@ -7,10 +7,26 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Boards: Public read, Owner write
+    // Boards: Public read, Owner write with validation
     match /boards/{boardId} {
       allow read: if true;
-      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      allow create: if request.auth != null 
+                    && request.resource.data.sellerId == request.auth.uid
+                    && request.resource.data.status == 'Live'
+                    // Recalculate duration in days approx:
+                    // We allow a small buffer (e.g. +/- 1 day) because client time vs server time might drift slightly
+                    // But here we just check generally correct logic or just existence for now if exact math is too brittle in rules without functions.
+                    // Actually, let's enforce:
+                    // 1. New boards MUST have isPaid == true. Used MUST have isPaid == false.
+                    && (
+                      (request.resource.data.condition == 'New' && request.resource.data.isPaid == true)
+                      || 
+                      (request.resource.data.condition == 'Used' && request.resource.data.isPaid == false)
+                    );
+                    // Note: Enforcing exact 'expiresAt' date math in Rules is possible but complex due to timestamp conversions.
+                    // Ideally we'd check: request.resource.data.expiresAt == request.time + duration
+                    // For now, ensuring isPaid aligns with Condition is the critical business rule requested.
+
       allow update, delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
     }
     

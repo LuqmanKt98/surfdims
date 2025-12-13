@@ -48,6 +48,8 @@ export interface Surfboard {
     description: string;
     images: string[];
     listedDate: string;
+    expiresAt: string;
+    isPaid: boolean;
     status: SurfboardStatus;
     website?: string;
 }
@@ -107,11 +109,11 @@ export interface BrandingState {
 }
 
 export interface AppNotification {
-  id: string;
-  message: string;
-  boardId: string;
-  isRead: boolean;
-  createdAt: string;
+    id: string;
+    message: string;
+    boardId: string;
+    isRead: boolean;
+    createdAt: string;
 }
 
 export interface AppSettingsState {

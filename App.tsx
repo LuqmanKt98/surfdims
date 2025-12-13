@@ -47,7 +47,7 @@ const initialFilters: FilterState = {
 const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const [boards, setBoards] = useState<Surfboard[]>(INITIAL_BOARDS);
+    const [boards, setBoards] = useState<Surfboard[]>([]);
     const [users, setUsers] = useState<User[]>(MOCK_USERS);
     const [donationEntries, setDonationEntries] = useState<DonationEntry[]>(MOCK_ENTRIES);
     const [isListingFormOpen, setIsListingFormOpen] = useState(false);

@@ -3,7 +3,6 @@ import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
     apiKey: import.meta.env.FIREBASE_API_KEY,
@@ -23,6 +22,5 @@ const auth = getAuth(app);
 // Connect to the specific database 'surfdims' as seen in your screenshots
 const db = getFirestore(app, "surfdims");
 const storage = getStorage(app);
-const rtdb = getDatabase(app);
 
-export { app, analytics, auth, db, storage, rtdb };
+export { app, analytics, auth, db, storage };

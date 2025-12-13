@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -199,6 +199,24 @@ const App: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
+    // Fetch Boards from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "boards"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const boardsData: Surfboard[] = [];
+            querySnapshot.forEach((doc) => {
+                boardsData.push({ id: doc.id, ...doc.data() } as Surfboard);
+            });
+            // Combine with initial boards if needed, or just use Firestore
+            // For now, we'll replace INITIAL_BOARDS with Firestore data + INITIAL_BOARDS (migrated later?)
+            // Actually, let's prioritize Firestore. If empty, maybe show initial?
+            // Let's just set boards to the fetched data. Use initial only if DB is empty to seed?
+            // Simplified: Just use DB data.
+            setBoards(boardsData); // This ensures all users see the same DB data (filtered by view later)
+        });
+        return () => unsubscribe();
+    }, []);
+
     // Handle deep linking and browser history
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -392,21 +410,31 @@ const App: React.FC = () => {
     }, [boards, selectedBoardId, handleCloseDetail]);
 
 
-    const handleAddUsedBoard = useCallback((newBoard: Omit<Surfboard, 'id'>, location?: { region: string, suburb: string }) => {
-        const boardWithId = { ...newBoard, id: new Date().toISOString() };
-        setBoards(prevBoards => [
-            boardWithId,
-            ...prevBoards
-        ]);
+    const handleAddUsedBoard = useCallback(async (newBoard: Omit<Surfboard, 'id'>, location?: { region: string, suburb: string }) => {
+        if (!currentUser) return;
+        const newBoardId = `board-${Date.now()}`;
+        const boardWithId: Surfboard = {
+            ...newBoard,
+            id: newBoardId,
+            sellerId: currentUser.id // Ensure sellerId is set
+        };
 
-        if (location && currentUser) {
-            const updatedUser: User = { ...currentUser, location: `${location.suburb}, ${location.region}` };
-            setCurrentUser(updatedUser);
-            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+        try {
+            await setDoc(doc(db, "boards", newBoardId), boardWithId);
+
+            if (location) {
+                const updatedUser: User = { ...currentUser, location: `${location.suburb}, ${location.region}` };
+                setCurrentUser(updatedUser);
+                await setDoc(doc(db, "users", currentUser.id), updatedUser);
+                setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+            }
+
+            setIsListingFormOpen(false);
+            handleSelectBoard(newBoardId);
+        } catch (error) {
+            console.error("Error adding board: ", error);
+            alert("Failed to create listing. Please try again.");
         }
-
-        setIsListingFormOpen(false);
-        handleSelectBoard(boardWithId.id);
     }, [currentUser, handleSelectBoard]);
 
     const handleStageAndReset = useCallback((newBoards: Omit<Surfboard, 'id'>[], location?: { region: string; suburb: string; }) => {
@@ -448,14 +476,17 @@ const App: React.FC = () => {
         setIsPaymentModalOpen(true);
     }, []);
 
-    const handleUpdateBoard = useCallback((updatedBoard: Surfboard) => {
-        setBoards(prevBoards =>
-            prevBoards.map(b => b.id === updatedBoard.id ? updatedBoard : b)
-        );
-        setIsListingFormOpen(false);
-        setEditingBoard(null);
-        setSelectedBoardId(updatedBoard.id);
-        alert('Your listing has been updated!');
+    const handleUpdateBoard = useCallback(async (updatedBoard: Surfboard) => {
+        try {
+            await updateDoc(doc(db, "boards", updatedBoard.id), updatedBoard as any);
+            setIsListingFormOpen(false);
+            setEditingBoard(null);
+            setSelectedBoardId(updatedBoard.id);
+            alert('Your listing has been updated!');
+        } catch (error) {
+            console.error("Error updating board", error);
+            alert("Failed to update listing.");
+        }
     }, []);
 
     const handleBrandingUpdate = useCallback((newBranding: BrandingState) => {
@@ -500,19 +531,29 @@ const App: React.FC = () => {
         setIsVolumeCalculatorOpen(false);
     }, []);
 
-    const handlePaymentSuccess = () => {
+    const handlePaymentSuccess = async () => {
         // Renewal Flow
         if (boardToRenewId) {
-            setBoards(prev => prev.map(b => b.id === boardToRenewId ? { ...b, status: SurfboardStatus.Live, listedDate: new Date().toISOString() } : b));
-            setBoardToRenewId(null);
-            setIsPaymentModalOpen(false);
-            setPaymentAmount(0);
-            alert('Listing reactivated successfully!');
+            try {
+                await updateDoc(doc(db, "boards", boardToRenewId), {
+                    status: SurfboardStatus.Live,
+                    listedDate: new Date().toISOString()
+                });
+                setBoardToRenewId(null);
+                setIsPaymentModalOpen(false);
+                setPaymentAmount(0);
+                alert('Listing reactivated successfully!');
+            } catch (error) {
+                console.error("Error renewing board", error);
+                alert("Failed to renew listing.");
+            }
             return;
         }
 
         // Donation Flow
         if (stagedUsedBoard && currentUser) {
+            // Note: Donations are still local for now unless we add a collection. 
+            // The prompt focus is on "own information + data" which usually implies listings.
             const donationAmount = paymentAmount;
             const newEntry: DonationEntry = {
                 id: `entry-${Date.now()}`,
@@ -524,29 +565,43 @@ const App: React.FC = () => {
             };
             setDonationEntries(prev => [newEntry, ...prev]);
 
-            handleAddUsedBoard(stagedUsedBoard, stagedLocation);
+            await handleAddUsedBoard(stagedUsedBoard, stagedLocation);
             alert(`Thanks for your donation! Your board is now listed.`);
 
             // New Board Flow
         } else if (boardsForPayment.length > 0 && currentUser) {
-            const newBoardsWithIds = boardsForPayment.map(board => ({
-                ...board,
-                id: `board-${Date.now()}-${Math.random()}`
-            }));
+            try {
+                const newIds: string[] = [];
+                const promises = boardsForPayment.map(async (board) => {
+                    const newId = `board-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    newIds.push(newId);
+                    const newBoard: Surfboard = {
+                        ...board,
+                        id: newId,
+                        sellerId: currentUser.id
+                    };
+                    await setDoc(doc(db, "boards", newId), newBoard);
+                    return newBoard;
+                });
 
-            setBoards(prev => [...newBoardsWithIds, ...prev]);
+                await Promise.all(promises);
 
-            if (stagedLocation) {
-                const updatedUser: User = { ...currentUser, location: `${stagedLocation.suburb}, ${stagedLocation.region}` };
-                setCurrentUser(updatedUser);
-                setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-            }
+                if (stagedLocation) {
+                    const updatedUser: User = { ...currentUser, location: `${stagedLocation.suburb}, ${stagedLocation.region}` };
+                    setCurrentUser(updatedUser);
+                    await setDoc(doc(db, "users", currentUser.id), updatedUser);
+                    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+                }
 
-            const totalListedCount = newBoardsWithIds.reduce((count, board) => count + board.dimensions.length, 0);
-            alert(`Payment successful! Your ${totalListedCount} board(s) are now listed.`);
+                const totalListedCount = boardsForPayment.reduce((count, board) => count + board.dimensions.length, 0);
+                alert(`Payment successful! Your ${totalListedCount} board(s) are now listed.`);
 
-            if (newBoardsWithIds.length > 0) {
-                handleSelectBoard(newBoardsWithIds[newBoardsWithIds.length - 1].id);
+                if (newIds.length > 0) {
+                    handleSelectBoard(newIds[newIds.length - 1]);
+                }
+            } catch (error) {
+                console.error("Error creating new boards", error);
+                alert("Failed to create listings. Please try again.");
             }
         }
 
@@ -637,12 +692,18 @@ const App: React.FC = () => {
         setStagedLocation(null);
     };
 
-    const handleUpdateUser = (updatedUser: User) => {
-        setCurrentUser(updatedUser);
-        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-        setIsAccountSettingsOpen(false);
-        alert('Your settings have been updated!');
-    };
+    const handleUpdateUser = useCallback(async (updatedUser: User) => {
+        try {
+            await setDoc(doc(db, "users", updatedUser.id), updatedUser, { merge: true });
+            setCurrentUser(updatedUser);
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+            setIsAccountSettingsOpen(false);
+            alert('Your settings have been updated!');
+        } catch (error) {
+            console.error("Error updating profile", error);
+            alert("Failed to update profile.");
+        }
+    }, []);
 
     const promptForAuth = useCallback((reason: string) => {
         navigate('/login');
@@ -711,6 +772,8 @@ const App: React.FC = () => {
         setCurrentUser(updatedUser);
         setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
     }, [currentUser]);
+
+
 
     const handleShare = useCallback((board: Surfboard) => {
         const boardUrl = `${window.location.origin}${window.location.pathname}?boardId=${board.id}`;
@@ -790,10 +853,15 @@ const App: React.FC = () => {
         window.scrollTo(0, 0);
     }, [handleCloseDetail]);
 
-    const handleMarkAsSold = useCallback((boardId: string) => {
-        setBoards(prev => prev.map(b => b.id === boardId ? { ...b, status: SurfboardStatus.Sold } : b));
-        handleCloseDetail();
-        alert('Listing marked as sold!');
+    const handleMarkAsSold = useCallback(async (boardId: string) => {
+        try {
+            await updateDoc(doc(db, "boards", boardId), { status: SurfboardStatus.Sold });
+            handleCloseDetail();
+            alert('Listing marked as sold!');
+        } catch (error) {
+            console.error("Error marking as sold", error);
+            alert("Failed to update status.");
+        }
     }, [handleCloseDetail]);
 
     const handleRenewListing = useCallback((boardId: string) => {

@@ -1,0 +1,21 @@
+{
+  "name": "SurfDims - Surfboard Marketplace",
+  "short_name": "SurfDims",
+  "description": "A web application for buying and selling new and second-hand surfboards.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#25425c",
+  "theme_color": "#25425c",
+  "icons": [
+    {
+      "src": "/icon-homescreen.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-homescreen.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

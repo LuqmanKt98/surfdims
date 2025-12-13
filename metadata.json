@@ -1,0 +1,5 @@
+{
+  "name": "SurfDims3",
+  "description": "A web application for buying and selling new and second-hand surfboards. Users can list their boards for free if they are used, or for a fee if they are new. Advanced search functionality allows buyers to filter boards by brand, dimensions, volume, and fin system with precise or range-based queries.",
+  "requestFramePermissions": []
+}

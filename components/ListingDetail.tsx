@@ -46,7 +46,7 @@ const DetailItem: React.FC<{ label: string, value: string | number }> = ({ label
 const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUser, onClose, isFavourited, onToggleFavs, onViewSellerListings, onMarkAsSold, onRenewListing, onRelistBoard, onDeleteListing, onEditListing, onShare, onLoginClick }) => {
     const placeholderImg = `https://placehold.co/800x600/f0f4f8/25425c?text=${encodeURIComponent([board.brand, board.model].filter(Boolean).join(' ') || 'Surfboard')}`;
     const hasImages = board.images && board.images.length > 0;
-    
+
     const [mainImage, setMainImage] = useState(hasImages ? board.images[0] : placeholderImg);
     const [isViewerOpen, setIsViewerOpen] = useState(false);
     const [viewerStartIndex, setViewerStartIndex] = useState(0);
@@ -83,7 +83,7 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
         const listedDate = new Date(board.listedDate);
         // Expiry: 1 year for new, 3 months (90 days) for used
         const expiryDurationDays = board.condition === Condition.New ? 365 : 90;
-        
+
         const expiryDate = new Date(listedDate.getTime());
         expiryDate.setDate(listedDate.getDate() + expiryDurationDays);
 
@@ -111,7 +111,7 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                     Back to Listings
                 </button>
             </div>
-            
+
             {board.status !== SurfboardStatus.Live && (
                 <div className={`p-4 mb-6 rounded-lg text-center font-bold text-base ${board.status === SurfboardStatus.Sold ? 'bg-gray-200 text-gray-700' : 'bg-yellow-100 text-yellow-800'}`}>
                     This listing is currently {board.status}.
@@ -122,17 +122,17 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                 {/* Image Gallery */}
                 <div className="lg:w-1/2">
                     <div className="relative group">
-                         <img 
-                            src={mainImage} 
-                            alt={`${board.brand} ${board.model}`} 
+                        <img
+                            src={mainImage}
+                            alt={`${board.brand} ${board.model}`}
                             className={`w-full h-auto object-cover rounded-lg shadow-md aspect-[4/3] ${hasImages ? 'cursor-pointer' : ''}`}
                             onClick={hasImages ? () => openViewer(board.images.indexOf(mainImage)) : undefined}
                         />
-                         <div 
+                        <div
                             className={`absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex justify-center items-center rounded-lg ${hasImages ? 'cursor-pointer' : ''}`}
                             onClick={hasImages ? () => openViewer(board.images.indexOf(mainImage)) : undefined}
                         >
-                           {hasImages && <ExpandIcon className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 group-hover:scale-110 transform transition-all duration-300"/>}
+                            {hasImages && <ExpandIcon className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 group-hover:scale-110 transform transition-all duration-300" />}
                         </div>
                     </div>
                     {board.images.length > 1 && (
@@ -152,7 +152,7 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
 
                 {/* Board Details */}
                 <div className="lg:w-1/2">
-                     <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start">
                         <div>
                             <span className={`px-3 py-1 text-sm font-semibold rounded-full ${conditionStyles}`}>{board.condition}</span>
                             <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-900 mt-2">{board.brand}</h1>
@@ -165,9 +165,9 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
 
                     {(board.condition === Condition.New) && board.website && (
                         <div className="mt-4">
-                            <a 
-                                href={!board.website.startsWith('http') ? `//${board.website}` : board.website} 
-                                target="_blank" 
+                            <a
+                                href={!board.website.startsWith('http') ? `//${board.website}` : board.website}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline font-semibold"
                             >
@@ -176,7 +176,7 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                             </a>
                         </div>
                     )}
-                    
+
                     <div className="mt-6">
                         <h3 className="font-bold text-lg text-gray-800 mb-3">Dimensions</h3>
                         <div className="overflow-x-auto">
@@ -214,17 +214,17 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                     </div>
 
                     <div className="mt-6 flex items-center gap-4">
-                         {isSeller ? (
-                             <button onClick={() => onEditListing(board)} className="flex-1 flex items-center justify-center gap-2 py-3 px-4 text-lg font-semibold rounded-lg shadow-md transition-colors border-2 border-blue-600 bg-blue-50 text-blue-700 hover:bg-blue-100">
+                        {isSeller ? (
+                            <button onClick={() => onEditListing(board)} className="flex-1 flex items-center justify-center gap-2 py-3 px-4 text-lg font-semibold rounded-lg shadow-md transition-colors border-2 border-blue-600 bg-blue-50 text-blue-700 hover:bg-blue-100">
                                 <EditIcon />
                                 Edit Listing
-                             </button>
-                         ) : (
-                            <button onClick={() => onToggleFavs(board.id)} className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-lg font-semibold rounded-lg shadow-md transition-colors border-2 ${isFavourited ? 'border-[#49b9ce] bg-[#49b9ce] bg-opacity-10 text-[#49b9ce]' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'} ${board.status !== SurfboardStatus.Live ? 'opacity-50 pointer-events-none' : ''}`}>
-                               <HeartIcon isFilled={isFavourited} className={isFavourited ? 'text-[#49b9ce]' : ''}/>
-                               {isFavourited ? 'In Favs' : 'Add to Favs'}
                             </button>
-                         )}
+                        ) : (
+                            <button onClick={() => onToggleFavs(board.id)} className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-lg font-semibold rounded-lg shadow-md transition-colors border-2 ${isFavourited ? 'border-[#49b9ce] bg-[#49b9ce] bg-opacity-10 text-[#49b9ce]' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'} ${board.status !== SurfboardStatus.Live ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <HeartIcon isFilled={isFavourited} className={isFavourited ? 'text-[#49b9ce]' : ''} />
+                                {isFavourited ? 'In Favs' : 'Add to Favs'}
+                            </button>
+                        )}
                         <button onClick={handleShareClick} className="flex-1 flex items-center justify-center gap-2 py-3 px-4 text-lg font-semibold rounded-lg shadow-md bg-blue-600 hover:bg-blue-700 text-white transition-colors">
                             <ShareIcon />
                             Share
@@ -237,9 +237,9 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
             {isSeller && (
                 <div className="mt-10 border-t pt-8">
                     <h3 className="text-2xl font-bold text-gray-800 mb-4">Manage Listing</h3>
-                     <div className="bg-gray-50 p-6 rounded-lg">
+                    <div className="bg-gray-50 p-6 rounded-lg">
                         {board.status === SurfboardStatus.Live && (
-                             <div className="space-y-8">
+                            <div className="space-y-8">
                                 <div>
                                     {expiryText && (
                                         <div className="flex items-center gap-2 text-gray-600 mb-2">
@@ -271,8 +271,8 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                         {board.status === SurfboardStatus.Expired && (
                             <div className="space-y-4">
                                 <div>
-                                     <p className="text-gray-600 mb-4">
-                                        {board.condition === Condition.New 
+                                    <p className="text-gray-600 mb-4">
+                                        {board.condition === Condition.New
                                             ? "This listing has expired because it is over 1 year old. Renewing requires payment."
                                             : "This listing expired because it's over 3 months old. Renew it for free to make it live again."
                                         }
@@ -284,8 +284,8 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                                 </div>
                                 <div className="pt-4 mt-4 border-t border-gray-200">
                                     <p className="text-sm text-gray-600 mb-2">Or, permanently remove this listing.</p>
-                                    <button 
-                                        onClick={handleDelete} 
+                                    <button
+                                        onClick={handleDelete}
                                         className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
                                     >
                                         <TrashIcon />
@@ -313,22 +313,22 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
             )}
 
 
-             {/* Seller Info */}
-             <div className="mt-10 border-t pt-8">
+            {/* Seller Info */}
+            <div className="mt-10 border-t pt-8">
                 <h3 className="text-2xl font-bold text-gray-800 mb-4">Seller Information</h3>
                 <div className="bg-gray-50 p-6 rounded-lg flex items-start sm:items-center gap-6">
                     <img src={seller.avatar} alt={seller.name} className="w-20 h-20 rounded-full object-cover flex-shrink-0" />
                     <div className="flex-grow">
                         <p className="text-xl font-bold text-gray-900">{seller.name}</p>
                         <p className="text-gray-600">{fullLocation}</p>
-                        
+
                         <div className={`mt-2 text-sm ${board.status !== SurfboardStatus.Live && !isSeller ? 'pointer-events-none' : ''}`}>
                             <a href={`mailto:${seller.email}`} className="text-blue-600 hover:underline break-all">{seller.email}</a>
                             {seller.phone && <span className="text-gray-400 mx-2 hidden sm:inline">|</span>}
                             {seller.phone && <a href={`tel:${seller.phone}`} className="text-blue-600 hover:underline block sm:inline mt-1 sm:mt-0">{seller.phone}</a>}
                         </div>
 
-                        <button 
+                        <button
                             onClick={() => onViewSellerListings(seller.id)}
                             className="mt-3 text-sm font-semibold text-blue-600 hover:underline focus:outline-none"
                         >

@@ -67,7 +67,7 @@ const BrandingManager: React.FC<{
             onUpdateBranding(DEFAULT_BRANDING);
         }
     };
-    
+
     return (
         <div className="bg-gray-50 p-6 rounded-lg">
             <h3 className="text-xl font-semibold text-gray-700 mb-6">Manage Site Branding</h3>
@@ -76,11 +76,11 @@ const BrandingManager: React.FC<{
                 <div>
                     <h4 className="font-semibold text-gray-800 mb-2">Desktop Logo</h4>
                     <p className="text-sm text-gray-500 mb-3">Recommended: SVG or transparent PNG.</p>
-                    <input type="file" accept="image/svg+xml, image/png, image/jpeg" onChange={(e) => handleImageUpload(e, 'desktop')} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4"/>
+                    <input type="file" accept="image/svg+xml, image/png, image/jpeg" onChange={(e) => handleImageUpload(e, 'desktop')} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4" />
                     <div className="p-4 border rounded-lg bg-white">
                         <p className="text-xs text-gray-500 mb-2">Preview:</p>
                         <div className="bg-[#25425c] p-4 rounded-md">
-                           <img src={branding.desktopLogo} alt="Desktop logo preview" className="h-10"/>
+                            <img src={branding.desktopLogo} alt="Desktop logo preview" className="h-10" />
                         </div>
                     </div>
                 </div>
@@ -88,11 +88,11 @@ const BrandingManager: React.FC<{
                 <div>
                     <h4 className="font-semibold text-gray-800 mb-2">Mobile Logo (Optional)</h4>
                     <p className="text-sm text-gray-500 mb-3">A compact version for small screens. If not provided, a default will be used.</p>
-                    <input type="file" accept="image/svg+xml, image/png, image/jpeg" onChange={(e) => handleImageUpload(e, 'mobile')} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4"/>
-                     <div className="p-4 border rounded-lg bg-white">
+                    <input type="file" accept="image/svg+xml, image/png, image/jpeg" onChange={(e) => handleImageUpload(e, 'mobile')} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4" />
+                    <div className="p-4 border rounded-lg bg-white">
                         <p className="text-xs text-gray-500 mb-2">Preview:</p>
                         <div className="bg-[#25425c] p-4 rounded-md">
-                           {branding.mobileLogo ? <img src={branding.mobileLogo} alt="Mobile logo preview" className="h-10"/> : <p className="text-sm text-gray-400">No mobile logo set.</p>}
+                            {branding.mobileLogo ? <img src={branding.mobileLogo} alt="Mobile logo preview" className="h-10" /> : <p className="text-sm text-gray-400">No mobile logo set.</p>}
                         </div>
                     </div>
                 </div>
@@ -101,7 +101,7 @@ const BrandingManager: React.FC<{
                 <button onClick={handleSaveChanges} className="py-2 px-6 font-semibold rounded-lg shadow-md bg-blue-600 hover:bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
                     Save Changes
                 </button>
-                 <button onClick={handleReset} className="py-2 px-6 font-semibold rounded-lg shadow-md bg-gray-600 hover:bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition">
+                <button onClick={handleReset} className="py-2 px-6 font-semibold rounded-lg shadow-md bg-gray-600 hover:bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition">
                     Reset to Default
                 </button>
             </div>
@@ -115,7 +115,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
     const [listingSearchTerm, setListingSearchTerm] = useState('');
 
     const sellerMap: Map<string, User> = useMemo(() => new Map<string, User>(users.map(u => [u.id, u])), [users]);
-    
+
     const filteredUsers = useMemo(() => {
         if (!userSearchTerm.trim()) {
             return users;
@@ -172,8 +172,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                     user.role || 'user',
                     new Date(user.createdAt).toLocaleString(),
                 ]
-                .map(escapeCsvField)
-                .join(',')
+                    .map(escapeCsvField)
+                    .join(',')
             )
         ];
 
@@ -194,11 +194,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
     const TabButton: React.FC<{ tabName: typeof activeTab; children: React.ReactNode }> = ({ tabName, children }) => (
         <button
             onClick={() => setActiveTab(tabName)}
-            className={`whitespace-nowrap py-3 px-4 font-medium text-sm transition-colors rounded-t-lg ${
-                activeTab === tabName
-                ? 'bg-white border-b-0 text-blue-600'
-                : 'bg-gray-100 text-gray-500 hover:text-gray-700'
-            }`}
+            className={`whitespace-nowrap py-3 px-4 font-medium text-sm transition-colors rounded-t-lg ${activeTab === tabName
+                    ? 'bg-white border-b-0 text-blue-600'
+                    : 'bg-gray-100 text-gray-500 hover:text-gray-700'
+                }`}
         >
             {children}
         </button>
@@ -239,34 +238,34 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                                 </div>
                             </div>
                             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                               {filteredBoards.length > 0 ? filteredBoards.map(board => {
-                                   const seller = sellerMap.get(board.sellerId);
-                                   const imageUrl = board.images && board.images.length > 0
+                                {filteredBoards.length > 0 ? filteredBoards.map(board => {
+                                    const seller = sellerMap.get(board.sellerId);
+                                    const imageUrl = board.images && board.images.length > 0
                                         ? board.images[0]
                                         : `https://placehold.co/200x160/f0f4f8/25425c?text=${encodeURIComponent(board.brand || 'No Image')}`;
-                                   return (
-                                    <div key={board.id} className="bg-white p-3 rounded-lg shadow-sm border flex items-center gap-4">
-                                        <img src={imageUrl} alt="Board" className="w-20 h-16 object-cover rounded"/>
-                                        <div className="flex-grow">
-                                            <p className="font-bold text-gray-800">{board.brand} {board.model}</p>
-                                            <p className="text-sm text-gray-500">
-                                                Listed by: <span className="font-medium text-gray-600">{seller?.name || 'Unknown'}</span> ({seller?.email})
-                                            </p>
+                                    return (
+                                        <div key={board.id} className="bg-white p-3 rounded-lg shadow-sm border flex items-center gap-4">
+                                            <img src={imageUrl} alt="Board" className="w-20 h-16 object-cover rounded" />
+                                            <div className="flex-grow">
+                                                <p className="font-bold text-gray-800">{board.brand} {board.model}</p>
+                                                <p className="text-sm text-gray-500">
+                                                    Listed by: <span className="font-medium text-gray-600">{seller?.name || 'Unknown'}</span> ({seller?.email})
+                                                </p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xs text-gray-500">Status</p>
+                                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${board.status === 'Live' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{board.status}</span>
+                                            </div>
+                                            <button onClick={() => onAdminDeleteListing(board.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full" aria-label="Delete listing">
+                                                <TrashIcon />
+                                            </button>
                                         </div>
-                                        <div className="text-center">
-                                            <p className="text-xs text-gray-500">Status</p>
-                                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${board.status === 'Live' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{board.status}</span>
-                                        </div>
-                                        <button onClick={() => onAdminDeleteListing(board.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full" aria-label="Delete listing">
-                                            <TrashIcon />
-                                        </button>
-                                    </div>
-                                   )
-                               }) : (
+                                    )
+                                }) : (
                                     <div className="text-center py-10">
                                         <p className="text-gray-500">No listings found.</p>
                                     </div>
-                               )}
+                                )}
                             </div>
                         </div>
                     )}
@@ -296,13 +295,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
                                 {filteredUsers.length > 0 ? filteredUsers.map(user => (
                                     <div key={user.id} className="bg-white p-3 rounded-lg shadow-sm border flex items-center gap-4">
-                                        <img src={user.avatar} alt="User" className="w-12 h-12 object-cover rounded-full"/>
+                                        <img src={user.avatar} alt="User" className="w-12 h-12 object-cover rounded-full" />
                                         <div className="flex-grow">
                                             <p className="font-bold text-gray-800">{user.name}</p>
                                             <p className="text-sm text-gray-500">{user.email}</p>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <button 
+                                            <button
                                                 onClick={() => onAdminToggleUserBlock(user.id)}
                                                 className={`w-24 text-sm font-semibold py-1 px-3 rounded-md ${user.isBlocked ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                                             >
@@ -311,7 +310,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                                         </div>
                                     </div>
                                 )) : (
-                                     <div className="text-center py-10">
+                                    <div className="text-center py-10">
                                         <p className="text-gray-500">No users found.</p>
                                     </div>
                                 )}

@@ -35,16 +35,16 @@ const ShareModal: React.FC<ShareModalProps> = ({ board, onClose }) => {
 
     const boardUrl = `${window.location.origin}?boardId=${board.id}`;
     const shareTitle = [board.brand, board.model].filter(Boolean).join(' ');
-    
+
     const firstDim = board.dimensions?.[0];
     const dimensionText = (firstDim && typeof firstDim.length === 'number' && !isNaN(firstDim.length)) ? `${firstDim.length}' ` : '';
-    
+
     const shareText = `Check out this ${shareTitle ? `${dimensionText}${shareTitle}` : 'surfboard'} on SurfDims! ${boardUrl}`;
 
     const handleCopy = () => {
         try {
             if (navigator?.clipboard?.writeText) {
-                 navigator.clipboard.writeText(boardUrl).then(() => {
+                navigator.clipboard.writeText(boardUrl).then(() => {
                     setCopyButtonText('Copied!');
                     setTimeout(() => setCopyButtonText('Copy Link'), 2000);
                 }).catch(err => {
@@ -63,11 +63,11 @@ const ShareModal: React.FC<ShareModalProps> = ({ board, onClose }) => {
     const imageUrl = board.images && board.images.length > 0
         ? board.images[0]
         : `https://placehold.co/800x600/f0f4f8/25425c?text=${encodeURIComponent(shareTitle || 'Surfboard')}`;
-    
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg relative animate-fade-in-down">
-                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition">
                     <XIcon />
                 </button>
                 <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Share This Board</h2>
@@ -81,12 +81,12 @@ const ShareModal: React.FC<ShareModalProps> = ({ board, onClose }) => {
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                     <ShareButton
+                    <ShareButton
                         icon={<CopyIcon />}
                         label={copyButtonText}
                         onClick={handleCopy}
                     />
-                     <ShareButton
+                    <ShareButton
                         icon={<EmailIcon />}
                         label="Email"
                         href={`mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareText)}`}
@@ -96,7 +96,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ board, onClose }) => {
                         label="WhatsApp"
                         href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
                     />
-                     <ShareButton
+                    <ShareButton
                         icon={<SmsIcon />}
                         label="Text"
                         href={`sms:?&body=${encodeURIComponent(shareText)}`}

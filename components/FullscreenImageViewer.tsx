@@ -55,7 +55,7 @@ const FullscreenImageViewer: React.FC<FullscreenImageViewerProps> = ({ images, s
             <button onClick={onClose} className="absolute top-4 right-4 text-white hover:text-gray-300 z-50">
                 <XIcon />
             </button>
-            
+
             <div className="relative w-full h-full flex items-center justify-center">
                 {images.length > 1 && (
                     <button onClick={goToPrevious} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-75 z-50">
@@ -64,9 +64,9 @@ const FullscreenImageViewer: React.FC<FullscreenImageViewerProps> = ({ images, s
                 )}
 
                 <div className="w-full h-full flex items-center justify-center p-4">
-                    <img src={images[currentIndex]} alt={`View ${currentIndex + 1}`} className="max-h-full max-w-full object-contain"/>
+                    <img src={images[currentIndex]} alt={`View ${currentIndex + 1}`} className="max-h-full max-w-full object-contain" />
                 </div>
-                
+
                 {images.length > 1 && (
                     <button onClick={goToNext} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-75 z-50">
                         <ChevronRightIcon />
@@ -74,7 +74,7 @@ const FullscreenImageViewer: React.FC<FullscreenImageViewerProps> = ({ images, s
                 )}
             </div>
 
-             {images.length > 1 && (
+            {images.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black bg-opacity-50 px-3 py-1 rounded-full text-sm">
                     {currentIndex + 1} / {images.length}
                 </div>

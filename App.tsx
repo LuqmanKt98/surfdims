@@ -275,7 +275,12 @@ const App: React.FC = () => {
 
                 if (timeSinceListed > expiryDuration) {
                     boardsHaveChanged = true;
-                    return { ...board, status: SurfboardStatus.Expired };
+                    return {
+                        ...board,
+                        status: SurfboardStatus.Expired,
+                        lifecycleStatus: 'inactive',
+                        inactiveAt: new Date().toISOString()
+                    };
                 }
             }
             return board;
@@ -416,7 +421,8 @@ const App: React.FC = () => {
 
         // Used boards logic: Free, 3 months listing, Unpaid
         const now = new Date();
-        const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days
+        const ninetyDaysInMs = 90 * 24 * 60 * 60 * 1000;
+        const expiresAt = new Date(now.getTime() + ninetyDaysInMs).toISOString();
 
         const boardWithId: Surfboard = {
             ...newBoard,
@@ -425,7 +431,14 @@ const App: React.FC = () => {
             status: SurfboardStatus.Live,
             listedDate: now.toISOString(),
             expiresAt: expiresAt,
-            isPaid: false
+            isPaid: false,
+            // Schema Compliance
+            ownerId: currentUser.id,
+            listingType: 'used',
+            lifecycleStatus: 'active',
+            createdAt: serverTimestamp(),
+            inactiveAt: null,
+            storagePath: `images/${currentUser.id}`
         };
 
         try {
@@ -543,18 +556,35 @@ const App: React.FC = () => {
     const handlePaymentSuccess = async () => {
         // Renewal Flow
         if (boardToRenewId) {
-            try {
-                await updateDoc(doc(db, "boards", boardToRenewId), {
-                    status: SurfboardStatus.Live,
-                    listedDate: new Date().toISOString()
-                });
-                setBoardToRenewId(null);
+            const boardToRenew = boards.find(b => b.id === boardToRenewId);
+            if (boardToRenew) {
+                try {
+                    const now = new Date();
+                    const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+                    const ninetyDaysInMs = 90 * 24 * 60 * 60 * 1000;
+
+                    const duration = boardToRenew.condition === Condition.New ? oneYearInMs : ninetyDaysInMs;
+                    const expiresAt = new Date(now.getTime() + duration).toISOString();
+
+                    await updateDoc(doc(db, "boards", boardToRenewId), {
+                        status: SurfboardStatus.Live,
+                        listedDate: now.toISOString(),
+                        expiresAt: expiresAt,
+                        // Update Schema Fields on Renewal
+                        lifecycleStatus: 'active',
+                        inactiveAt: null
+                    });
+                    setBoardToRenewId(null);
+                    setIsPaymentModalOpen(false);
+                    setPaymentAmount(0);
+                    alert('Listing reactivated successfully!');
+                } catch (error) {
+                    console.error("Error renewing board", error);
+                    alert("Failed to renew listing.");
+                }
+            } else {
+                alert("Board not found for renewal.");
                 setIsPaymentModalOpen(false);
-                setPaymentAmount(0);
-                alert('Listing reactivated successfully!');
-            } catch (error) {
-                console.error("Error renewing board", error);
-                alert("Failed to renew listing.");
             }
             return;
         }
@@ -587,7 +617,8 @@ const App: React.FC = () => {
 
                     // New/Paid boards logic: Paid, 12 months listing
                     const now = new Date();
-                    const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 365 days
+                    const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+                    const expiresAt = new Date(now.getTime() + oneYearInMs).toISOString();
 
                     const newBoard: Surfboard = {
                         ...board,
@@ -596,7 +627,14 @@ const App: React.FC = () => {
                         status: SurfboardStatus.Live,
                         listedDate: now.toISOString(),
                         expiresAt: expiresAt,
-                        isPaid: true
+                        isPaid: true,
+                        // Schema Compliance
+                        ownerId: currentUser.id,
+                        listingType: 'new',
+                        lifecycleStatus: 'active',
+                        createdAt: serverTimestamp(),
+                        inactiveAt: null,
+                        storagePath: `images/${currentUser.id}`
                     };
                     await setDoc(doc(db, "boards", newId), newBoard);
                     return newBoard;

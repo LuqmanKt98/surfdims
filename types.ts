@@ -52,6 +52,13 @@ export interface Surfboard {
     isPaid: boolean;
     status: SurfboardStatus;
     website?: string;
+    // Backend Schema Compliance
+    ownerId?: string;
+    listingType?: 'used' | 'new';
+    lifecycleStatus?: 'active' | 'inactive';
+    createdAt?: any; // ServerTimestamp
+    inactiveAt?: string | null;
+    storagePath?: string;
 }
 
 export interface FilterState {

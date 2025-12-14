@@ -28,6 +28,7 @@ import VerificationBanner from './components/VerificationBanner';
 import VerificationStatusModal from './components/VerificationStatusModal';
 import CharityModal from './components/CharityModal';
 import VolumeCalculatorModal from './components/VolumeCalculatorModal';
+import StagedBoardsCart from './components/StagedBoardsCart';
 
 const initialFilters: FilterState = {
     brand: '',
@@ -89,10 +90,37 @@ const App: React.FC = () => {
     const [filters, setFilters] = useState<FilterState>(initialFilters);
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
     const [boardToRenewId, setBoardToRenewId] = useState<string | null>(null);
+    const [isStagedCartOpen, setIsStagedCartOpen] = useState(false);
 
     useEffect(() => {
         setVisibleListingsCount(15);
     }, [filters, view, sortOrder]);
+
+    // Load staged boards from localStorage on mount
+    useEffect(() => {
+        if (!currentUser) return;
+        try {
+            const saved = localStorage.getItem(`surfdims-staged-boards-${currentUser.id}`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    setStagedNewBoards(parsed);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load staged boards from localStorage', e);
+        }
+    }, [currentUser]);
+
+    // Save staged boards to localStorage whenever they change
+    useEffect(() => {
+        if (!currentUser) return;
+        try {
+            localStorage.setItem(`surfdims-staged-boards-${currentUser.id}`, JSON.stringify(stagedNewBoards));
+        } catch (e) {
+            console.error('Failed to save staged boards to localStorage', e);
+        }
+    }, [stagedNewBoards, currentUser]);
 
     // Listen for PWA install prompt
     useEffect(() => {
@@ -199,6 +227,31 @@ const App: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
+    // Fetch Users from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "users"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const usersData: User[] = [];
+            querySnapshot.forEach((doc) => {
+                usersData.push({ id: doc.id, ...doc.data() } as User);
+            });
+
+            // Merge Firestore users with MOCK_USERS to ensure we don't break existing mock data references
+            // but prefer Firestore data if ID matches.
+            setUsers(prev => {
+                // simple merge strategy using Map
+                const userMap = new Map<string, User>();
+                MOCK_USERS.forEach(u => userMap.set(u.id, u));
+                // Previous state might have some optimistic updates, but Firestore should be truth.
+                // However, we must ensure MOCK_USERS are preserved if they are not in DB, 
+                // because INITIAL_BOARDS rely on them.
+                usersData.forEach(u => userMap.set(u.id, u));
+                return Array.from(userMap.values());
+            });
+        });
+        return () => unsubscribe();
+    }, []);
+
     // Fetch Boards from Firestore
     useEffect(() => {
         const q = query(collection(db, "boards"));
@@ -278,7 +331,7 @@ const App: React.FC = () => {
                     return {
                         ...board,
                         status: SurfboardStatus.Expired,
-                        lifecycleStatus: 'inactive',
+                        lifecycleStatus: 'inactive' as const,
                         inactiveAt: new Date().toISOString()
                     };
                 }
@@ -666,6 +719,7 @@ const App: React.FC = () => {
         setBoardsForPayment([]);
         setStagedUsedBoard(null);
         setStagedLocation(null);
+        setStagedNewBoards([]); // Clear staged boards after successful payment
         setPaymentAmount(0);
         setPaymentDescription('');
     };
@@ -744,9 +798,38 @@ const App: React.FC = () => {
     const handleCloseListingForm = () => {
         setIsListingFormOpen(false);
         setEditingBoard(null);
-        setStagedNewBoards([]);
-        setStagedLocation(null);
+        // DON'T clear staged boards - they should persist until payment or explicit clear
     };
+
+    const handleRemoveStagedBoard = useCallback((index: number) => {
+        setStagedNewBoards(prev => prev.filter((_, i) => i !== index));
+    }, []);
+
+    const handleClearStagedBoards = useCallback(() => {
+        if (window.confirm('Are you sure you want to clear all staged boards?')) {
+            setStagedNewBoards([]);
+            setStagedLocation(null);
+            setIsStagedCartOpen(false);
+        }
+    }, []);
+
+    const handleProceedToPaymentFromCart = useCallback(() => {
+        if (stagedNewBoards.length === 0) {
+            alert('No boards to pay for');
+            return;
+        }
+
+        if (currentUser) {
+            const fee = getNewBoardFee(currentUser.country);
+            const totalBoardCount = stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0);
+            setPaymentAmount(fee * totalBoardCount);
+            setPaymentDescription(`${totalBoardCount} paid listing(s)`);
+            setBoardsForPayment(stagedNewBoards);
+        }
+
+        setIsStagedCartOpen(false);
+        setIsPaymentModalOpen(true);
+    }, [stagedNewBoards, currentUser]);
 
     const handleUpdateUser = useCallback(async (updatedUser: User) => {
         try {
@@ -1271,6 +1354,8 @@ const App: React.FC = () => {
                 onNotificationClick={handleNotificationClick}
                 onMarkAllNotificationsAsRead={handleMarkAllNotificationsAsRead}
                 onClearAllNotifications={handleClearAllNotifications}
+                stagedBoardsCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
+                onCartClick={() => setIsStagedCartOpen(true)}
             />
 
             {currentUser && !currentUser.isVerified && verificationStatus !== 'verifying' && (
@@ -1503,6 +1588,18 @@ const App: React.FC = () => {
                 <VolumeCalculatorModal
                     onClose={() => setIsVolumeCalculatorOpen(false)}
                     onApply={handleApplyVolumeRange}
+                />
+            )}
+            {currentUser && (
+                <StagedBoardsCart
+                    stagedBoards={stagedNewBoards}
+                    onRemoveBoard={handleRemoveStagedBoard}
+                    onClearAll={handleClearStagedBoards}
+                    onProceedToPayment={handleProceedToPaymentFromCart}
+                    currencySymbol={getCurrencySymbol(currentUser.country)}
+                    boardFee={getNewBoardFee(currentUser.country)}
+                    isOpen={isStagedCartOpen}
+                    onClose={() => setIsStagedCartOpen(false)}
                 />
             )}
         </div>

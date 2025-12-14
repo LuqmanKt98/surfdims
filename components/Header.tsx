@@ -6,6 +6,7 @@ import CogIcon from './icons/CogIcon';
 import QuestionIcon from './icons/QuestionIcon';
 import AdminIcon from './icons/AdminIcon';
 import BellIcon from './icons/BellIcon';
+import CartIcon from './icons/CartIcon';
 import NotificationsDropdown from './NotificationsDropdown';
 
 interface HeaderProps {
@@ -25,17 +26,19 @@ interface HeaderProps {
     onNotificationClick: (notification: AppNotification) => void;
     onMarkAllNotificationsAsRead: () => void;
     onClearAllNotifications: () => void;
+    stagedBoardsCount: number;
+    onCartClick: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
+const Header: React.FC<HeaderProps> = ({
     branding,
-    currentUser, 
-    onListBoardClick, 
-    onLoginClick, 
-    onLogout, 
-    onShowFavs, 
-    onShowMyListings, 
-    onShowAll, 
+    currentUser,
+    onListBoardClick,
+    onLoginClick,
+    onLogout,
+    onShowFavs,
+    onShowMyListings,
+    onShowAll,
     onAccountSettingsClick,
     onFaqClick,
     onContactClick,
@@ -44,6 +47,8 @@ const Header: React.FC<HeaderProps> = ({
     onNotificationClick,
     onMarkAllNotificationsAsRead,
     onClearAllNotifications,
+    stagedBoardsCount,
+    onCartClick,
 }) => {
     const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
     const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
@@ -67,13 +72,13 @@ const Header: React.FC<HeaderProps> = ({
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-    
+
     const unreadCount = notifications.filter(n => !n.isRead).length;
 
     return (
         <header className="bg-[#25425c] shadow-md sticky top-0 z-20">
             <div className="container mx-auto px-4 lg:px-6 flex justify-between items-center">
-                <div 
+                <div
                     className="cursor-pointer"
                     onClick={onShowAll}
                 >
@@ -87,14 +92,14 @@ const Header: React.FC<HeaderProps> = ({
                         {branding.mobileLogo ? (
                             <img src={branding.mobileLogo} alt="SurfDims Logo" className="h-10" />
                         ) : (
-                             <h1 className="text-3xl font-extrabold text-[#4abacf] tracking-tight">
+                            <h1 className="text-3xl font-extrabold text-[#4abacf] tracking-tight">
                                 <span className="text-white">Surf</span>Dims
                             </h1>
                         )}
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    <button 
+                    <button
                         onClick={onListBoardClick}
                         className="px-4 md:px-6 py-2 bg-[#49b9ce] text-white font-semibold rounded-lg shadow-md hover:bg-[#41a5b9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#25425c] focus:ring-[#49b9ce] transition duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed"
                         disabled={!!currentUser && !currentUser.isVerified}
@@ -103,14 +108,30 @@ const Header: React.FC<HeaderProps> = ({
                         <span className="md:hidden">LIST</span>
                         <span className="hidden md:inline">List Board</span>
                     </button>
-                    
+
+                    {/* Staged Boards Cart Button */}
+                    {currentUser && stagedBoardsCount > 0 && (
+                        <button
+                            onClick={onCartClick}
+                            className="relative px-3 py-2 bg-[#49b9ce] text-white font-semibold rounded-lg shadow-md hover:bg-[#41a5b9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#25425c] focus:ring-[#49b9ce] transition duration-150 ease-in-out"
+                            title="View staged boards"
+                        >
+                            <CartIcon className="w-6 h-6" />
+                            {stagedBoardsCount > 0 && (
+                                <span className="absolute -top-1 -right-1 block h-5 w-5 transform rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center ring-2 ring-[#25425c]">
+                                    {stagedBoardsCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
+
                     {/* Help Dropdown */}
                     <div className="relative" ref={helpDropdownRef}>
-                         <button onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)} className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#25425c] focus:ring-cyan-400 rounded-full">
+                        <button onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)} className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#25425c] focus:ring-cyan-400 rounded-full">
                             <QuestionIcon className="h-10 w-10 p-1.5 rounded-full text-white border-2 border-[#3e90a6]" />
                         </button>
                         {isHelpDropdownOpen && (
-                             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl z-20 py-1">
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl z-20 py-1">
                                 <a
                                     href="#"
                                     onClick={(e) => { e.preventDefault(); onFaqClick(); setIsHelpDropdownOpen(false); }}
@@ -181,7 +202,7 @@ const Header: React.FC<HeaderProps> = ({
                                     >
                                         My Favs
                                     </a>
-                                     <a
+                                    <a
                                         href="#"
                                         onClick={(e) => { e.preventDefault(); onAccountSettingsClick(); setIsUserDropdownOpen(false); }}
                                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -211,7 +232,7 @@ const Header: React.FC<HeaderProps> = ({
                             )}
                         </div>
                     ) : (
-                        <button 
+                        <button
                             onClick={onLoginClick}
                             className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#25425c] focus:ring-cyan-400 rounded-full"
                         >

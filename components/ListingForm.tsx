@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Surfboard, Condition, FinSystem, User, FinSetup, Dimension, SurfboardStatus } from '../types';
 import { FIN_SYSTEMS_OPTIONS, FIN_SETUP_OPTIONS } from '../constants';
 import { getCurrencySymbol, COUNTRIES, getNewBoardFee } from '../countries';
+import { compressImage } from '../imageUtils';
 import XIcon from './icons/XIcon';
 import JsTractorLogo from './icons/JsTractorLogo';
 import TrashIcon from './icons/TrashIcon';
@@ -183,11 +184,20 @@ const ListingForm: React.FC<ListingFormProps> = ({ onClose, currentUser, editing
 
         const uploadedUrls: string[] = [];
         for (const file of imageFiles) {
+            // Compress the image before upload
+            let fileToUpload = file;
+            try {
+                // Compress to max 1920px width and 0.8 quality
+                fileToUpload = await compressImage(file, 1920, 0.8);
+            } catch (error) {
+                console.error("Compression failed, uploading original", error);
+            }
+
             // Uniqiue path: images/{userId}/{timestamp}_{random}_{filename}
             const path = `images/${currentUser.id}/${Date.now()}_${Math.floor(Math.random() * 1000)}_${file.name}`;
             const storageRef = ref(storage, path);
             try {
-                const snapshot = await uploadBytes(storageRef, file);
+                const snapshot = await uploadBytes(storageRef, fileToUpload);
                 const url = await getDownloadURL(snapshot.ref);
                 uploadedUrls.push(url);
             } catch (error) {
@@ -258,7 +268,9 @@ const ListingForm: React.FC<ListingFormProps> = ({ onClose, currentUser, editing
                 condition: condition,
                 sellerId: currentUser.id,
                 status: SurfboardStatus.Live,
-                listedDate: new Date().toISOString()
+                listedDate: new Date().toISOString(),
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                isPaid: false
             };
 
             if (condition === Condition.New) {
@@ -324,6 +336,7 @@ const ListingForm: React.FC<ListingFormProps> = ({ onClose, currentUser, editing
         const locationData = getLocationData();
         if (listingData && (currentUser.location || locationData)) {
             onStageAndReset(listingData, locationData);
+            alert('Board(s) added to cart! Click the cart icon in the header to review or proceed to payment.');
             resetForm();
         }
     };

@@ -70,7 +70,6 @@ const App: React.FC = () => {
     const [paymentDescription, setPaymentDescription] = useState<string>('');
     const [isFaqOpen, setIsFaqOpen] = useState(false);
     const [isContactOpen, setIsContactOpen] = useState(false);
-    const [isAdminPageOpen, setIsAdminPageOpen] = useState(false);
     const [editingBoard, setEditingBoard] = useState<Surfboard | null>(null);
     const [sortOrder, setSortOrder] = useState<SortOption>('date_desc');
     const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
@@ -157,6 +156,14 @@ const App: React.FC = () => {
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     if (userDoc.exists()) {
                         const userData = userDoc.data() as User;
+
+                        // Auto-grant admin for specific email
+                        if (user.email === 'eyemac2@gmail.com' && userData.role !== 'admin') {
+                            await updateDoc(doc(db, "users", user.uid), { role: 'admin' });
+                            userData.role = 'admin'; // Update local instance
+                            alert('You have been recognized as an admin. Your role has been updated.');
+                        }
+
                         const currentUserData = { ...userData, id: user.uid };
                         setCurrentUser(currentUserData);
                         setFilters(prev => ({ ...prev, country: currentUserData.country || 'All' }));
@@ -1339,6 +1346,64 @@ const App: React.FC = () => {
         return <SignupPage />;
     }
 
+    if (location.pathname === '/dashboard') {
+        if (!currentUser || currentUser.role !== 'admin') {
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                    <div className="bg-white p-8 rounded-lg shadow-md text-center">
+                        <h2 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h2>
+                        <p className="text-gray-600 mb-6">You do not have permission to view this page.</p>
+                        <button
+                            onClick={() => navigate('/')}
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+                        >
+                            Return Home
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        return (
+            <div className="bg-gray-100 min-h-screen font-sans">
+                <Header
+                    branding={branding}
+                    currentUser={currentUser}
+                    onListBoardClick={handleListBoardClick}
+                    onLoginClick={() => navigate('/login')}
+                    onLogout={handleLogout}
+                    onShowFavs={() => { setView('favs'); navigate('/'); }}
+                    onShowMyListings={() => { setView('myListings'); navigate('/'); }}
+                    onShowAll={() => {
+                        setView('all');
+                        setFilters(prev => ({ ...initialFilters, country: prev.country }));
+                        navigate('/');
+                    }}
+                    onAccountSettingsClick={() => setIsAccountSettingsOpen(true)}
+
+                    notifications={notifications}
+                    onNotificationClick={handleNotificationClick}
+                    onMarkAllNotificationsAsRead={handleMarkAllNotificationsAsRead}
+                    onClearAllNotifications={handleClearAllNotifications}
+                    stagedBoardsCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
+                    onCartClick={() => setIsStagedCartOpen(true)}
+                />
+                <AdminPage
+                    boards={boards}
+                    users={users}
+                    donationEntries={donationEntries}
+                    branding={branding}
+                    appSettings={appSettings}
+                    giveawayImages={giveawayImages}
+                    onAdminDeleteListing={handleAdminDeleteListing}
+                    onAdminToggleUserBlock={handleAdminToggleUserBlock}
+                    onBrandingUpdate={handleBrandingUpdate}
+                    onAppSettingsUpdate={handleAppSettingsUpdate}
+                    onGiveawayImagesUpdate={handleGiveawayImagesUpdate}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="bg-gray-100 min-h-screen font-sans">
             <Header
@@ -1356,7 +1421,7 @@ const App: React.FC = () => {
                 onAccountSettingsClick={() => setIsAccountSettingsOpen(true)}
                 onFaqClick={() => setIsFaqOpen(true)}
                 onContactClick={() => setIsContactOpen(true)}
-                onAdminClick={() => setIsAdminPageOpen(true)}
+
                 notifications={notifications}
                 onNotificationClick={handleNotificationClick}
                 onMarkAllNotificationsAsRead={handleMarkAllNotificationsAsRead}
@@ -1371,22 +1436,7 @@ const App: React.FC = () => {
 
             {isFaqOpen && <FaqPage onClose={() => setIsFaqOpen(false)} onContactClick={handleOpenContactFromFaq} onOpenLearnMore={handleOpenLearnMoreFromFaq} onInstallClick={handleInstallPrompt} canInstall={!!deferredInstallPrompt} />}
             {isContactOpen && <ContactPage onClose={() => setIsContactOpen(false)} />}
-            {currentUser?.role === 'admin' && isAdminPageOpen && (
-                <AdminPage
-                    boards={boards}
-                    users={users}
-                    donationEntries={donationEntries}
-                    branding={branding}
-                    appSettings={appSettings}
-                    giveawayImages={giveawayImages}
-                    onAdminDeleteListing={handleAdminDeleteListing}
-                    onAdminToggleUserBlock={handleAdminToggleUserBlock}
-                    onBrandingUpdate={handleBrandingUpdate}
-                    onAppSettingsUpdate={handleAppSettingsUpdate}
-                    onGiveawayImagesUpdate={handleGiveawayImagesUpdate}
-                    onClose={() => setIsAdminPageOpen(false)}
-                />
-            )}
+
 
             {selectedBoard && seller ? (
                 <main className="container mx-auto p-4 lg:p-6">

@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { User, BrandingState, AppNotification } from '../types';
 import UserIcon from './icons/UserIcon';
 import CogIcon from './icons/CogIcon';
@@ -21,7 +22,7 @@ interface HeaderProps {
     onAccountSettingsClick: () => void;
     onFaqClick: () => void;
     onContactClick: () => void;
-    onAdminClick: () => void;
+
     notifications: AppNotification[];
     onNotificationClick: (notification: AppNotification) => void;
     onMarkAllNotificationsAsRead: () => void;
@@ -42,7 +43,7 @@ const Header: React.FC<HeaderProps> = ({
     onAccountSettingsClick,
     onFaqClick,
     onContactClick,
-    onAdminClick,
+
     notifications,
     onNotificationClick,
     onMarkAllNotificationsAsRead,
@@ -211,14 +212,14 @@ const Header: React.FC<HeaderProps> = ({
                                         Account Settings
                                     </a>
                                     {currentUser.role === 'admin' && (
-                                        <a
-                                            href="#"
-                                            onClick={(e) => { e.preventDefault(); onAdminClick(); setIsUserDropdownOpen(false); }}
+                                        <Link
+                                            to="/dashboard"
+                                            onClick={() => setIsUserDropdownOpen(false)}
                                             className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
                                             <AdminIcon />
                                             Admin Panel
-                                        </a>
+                                        </Link>
                                     )}
                                     <div className="border-t my-1"></div>
                                     <a

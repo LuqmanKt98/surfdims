@@ -23,7 +23,7 @@ interface AdminPageProps {
     onBrandingUpdate: (newBranding: BrandingState) => void;
     onAppSettingsUpdate: (newSettings: AppSettingsState) => void;
     onGiveawayImagesUpdate: (images: string[]) => void;
-    onClose: () => void;
+
 }
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -109,7 +109,7 @@ const BrandingManager: React.FC<{
     );
 };
 
-const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListing, onAdminToggleUserBlock, onClose, branding, onBrandingUpdate, appSettings, onAppSettingsUpdate, giveawayImages, onGiveawayImagesUpdate, donationEntries }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListing, onAdminToggleUserBlock, branding, onBrandingUpdate, appSettings, onAppSettingsUpdate, giveawayImages, onGiveawayImagesUpdate, donationEntries }) => {
     const [activeTab, setActiveTab] = useState<'listings' | 'users' | 'branding' | 'apps' | 'giveaways' | 'entries'>('listings');
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [listingSearchTerm, setListingSearchTerm] = useState('');
@@ -195,8 +195,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
         <button
             onClick={() => setActiveTab(tabName)}
             className={`whitespace-nowrap py-3 px-4 font-medium text-sm transition-colors rounded-t-lg ${activeTab === tabName
-                    ? 'bg-white border-b-0 text-blue-600'
-                    : 'bg-gray-100 text-gray-500 hover:text-gray-700'
+                ? 'bg-white border-b-0 text-blue-600'
+                : 'bg-gray-100 text-gray-500 hover:text-gray-700'
                 }`}
         >
             {children}
@@ -204,15 +204,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
     );
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start py-10 overflow-y-auto">
-            <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-6xl relative animate-fade-in-down">
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition">
-                    <XIcon />
-                </button>
+        <div className="container mx-auto p-4 lg:p-6 pb-20">
+            <div className="bg-white rounded-lg shadow-xl p-8 w-full animate-fade-in-down">
                 <h2 className="text-3xl font-bold text-gray-800 mb-6">Admin Panel</h2>
 
                 <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-2" aria-label="Tabs">
+                    <nav className="-mb-px flex space-x-2 overflow-x-auto" aria-label="Tabs">
                         <TabButton tabName="listings">Manage Listings ({boards.length})</TabButton>
                         <TabButton tabName="users">Manage Users ({users.length})</TabButton>
                         <TabButton tabName="entries">Entries ({donationEntries.length})</TabButton>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, collection, query, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, onSnapshot, setDoc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -1030,10 +1030,16 @@ const App: React.FC = () => {
         alert('Board has been relisted!');
     }, []);
 
-    const handleDeleteListing = useCallback((boardId: string) => {
-        setBoards(prev => prev.filter(b => b.id !== boardId));
-        handleCloseDetail();
-        alert('Listing has been deleted.');
+    const handleDeleteListing = useCallback(async (boardId: string) => {
+        try {
+            await deleteDoc(doc(db, "boards", boardId));
+            setBoards(prev => prev.filter(b => b.id !== boardId));
+            handleCloseDetail();
+            alert('Listing has been deleted.');
+        } catch (error) {
+            console.error("Error deleting listing", error);
+            alert("Failed to delete listing. Please try again.");
+        }
     }, [handleCloseDetail]);
 
     const handleEditListing = useCallback((board: Surfboard) => {

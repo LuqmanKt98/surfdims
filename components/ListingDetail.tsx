@@ -250,13 +250,7 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                                     {board.condition === Condition.New ? (
                                         <p className="text-gray-600 mb-4">New listings are active for 1 year. No renewal needed until expiry.</p>
                                     ) : (
-                                        <>
-                                            <p className="text-gray-600 mb-4">Used listings active for 3 months. Extend anytime for free.</p>
-                                            <button onClick={() => onRenewListing(board.id)} className="w-full sm:w-auto flex items-center justify-center gap-2 py-2 px-6 font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 text-white transition-colors">
-                                                <RefreshIcon />
-                                                Extend Listing
-                                            </button>
-                                        </>
+                                        <p className="text-gray-600 mb-4">Used listings are active for 3 months.</p>
                                     )}
                                 </div>
                                 <div className="pt-8 border-t border-gray-200">
@@ -282,16 +276,6 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                                         {board.condition === Condition.New ? 'Reactivate (Payment Required)' : 'Renew Listing'}
                                     </button>
                                 </div>
-                                <div className="pt-4 mt-4 border-t border-gray-200">
-                                    <p className="text-sm text-gray-600 mb-2">Or, permanently remove this listing.</p>
-                                    <button
-                                        onClick={handleDelete}
-                                        className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
-                                    >
-                                        <TrashIcon />
-                                        Delete listing
-                                    </button>
-                                </div>
                             </div>
                         )}
                         {board.status === SurfboardStatus.Sold && (
@@ -303,6 +287,17 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                                 </button>
                             </div>
                         )}
+
+                        <div className="pt-8 mt-8 border-t border-gray-200">
+                            <p className="text-sm text-gray-600 mb-4">Permanently remove this listing from SurfDims.</p>
+                            <button
+                                onClick={handleDelete}
+                                className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-200"
+                            >
+                                <TrashIcon />
+                                Delete listing
+                            </button>
+                        </div>
                     </div>
                     {board.status === SurfboardStatus.Expired && (
                         <p className="text-xs text-gray-500 text-center mt-4">
@@ -338,14 +333,16 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                 </div>
             </div>
 
-            {isViewerOpen && hasImages && (
-                <FullscreenImageViewer
-                    images={board.images}
-                    startIndex={viewerStartIndex}
-                    onClose={() => setIsViewerOpen(false)}
-                />
-            )}
-        </div>
+            {
+                isViewerOpen && hasImages && (
+                    <FullscreenImageViewer
+                        images={board.images}
+                        startIndex={viewerStartIndex}
+                        onClose={() => setIsViewerOpen(false)}
+                    />
+                )
+            }
+        </div >
     );
 };
 

@@ -6,11 +6,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { User } from '../types';
 
-interface SignupPageProps {
-    onSignup: (name: string, email: string, pass: string, country: string) => void;
-}
-
-const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
+const SignupPage: React.FC = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');

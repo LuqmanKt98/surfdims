@@ -1325,11 +1325,11 @@ const App: React.FC = () => {
     );
 
     if (location.pathname === '/login') {
-        return <LoginPage onLogin={() => { }} />;
+        return <LoginPage />;
     }
 
     if (location.pathname === '/signup') {
-        return <SignupPage onSignup={() => { }} />;
+        return <SignupPage />;
     }
 
     return (

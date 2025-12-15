@@ -24,7 +24,9 @@ export enum Condition {
 export enum SurfboardStatus {
     Live = 'Live',
     Expired = 'Expired',
-    Sold = 'Sold'
+    Sold = 'Sold',
+    PendingVerification = 'PendingVerification',
+    PaymentFailed = 'PaymentFailed'
 }
 
 export interface Dimension {
@@ -59,6 +61,8 @@ export interface Surfboard {
     createdAt?: any; // ServerTimestamp
     inactiveAt?: string | null;
     storagePath?: string;
+    paymentIntentId?: string;
+    paymentVerified?: boolean;
 }
 
 export interface FilterState {

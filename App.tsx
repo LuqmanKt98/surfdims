@@ -677,17 +677,18 @@ const App: React.FC = () => {
                         ...board,
                         id: newId,
                         sellerId: currentUser.id,
-                        status: SurfboardStatus.Live,
+                        status: SurfboardStatus.PendingVerification, // Backend verifies payment first
                         listedDate: now.toISOString(),
-                        expiresAt: expiresAt,
-                        isPaid: true,
+                        expiresAt: '', // Backend sets this
+                        isPaid: false, // Backend sets this upon verification
                         // Schema Compliance
                         ownerId: currentUser.id,
                         listingType: 'new',
                         lifecycleStatus: 'active',
                         createdAt: serverTimestamp(),
                         inactiveAt: null,
-                        storagePath: `images/${currentUser.id}`
+                        storagePath: `images/${currentUser.id}`,
+                        paymentIntentId: 'pi_mock_' + Date.now() // Simulation of Stripe Payment Intent ID
                     };
                     await setDoc(doc(db, "boards", newId), newBoard);
                     return newBoard;

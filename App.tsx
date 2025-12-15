@@ -1055,12 +1055,29 @@ const App: React.FC = () => {
         handleCloseDetail();
     }, [handleCloseDetail]);
 
-    const handleAdminDeleteListing = useCallback((boardId: string) => {
+    const handleAdminDeleteListing = useCallback(async (boardId: string) => {
         if (window.confirm('Are you sure you want to permanently delete this listing?')) {
-            setBoards(prev => prev.filter(b => b.id !== boardId));
-            alert('Listing has been deleted.');
+            try {
+                await deleteDoc(doc(db, "boards", boardId));
+                setBoards(prev => prev.filter(b => b.id !== boardId));
+                alert('Listing has been deleted.');
+            } catch (error) {
+                console.error("Error deleting listing:", error);
+                alert("Failed to delete listing.");
+            }
         }
-    }, []);
+    }, [db]);
+
+    const handleAdminApproveListing = useCallback(async (boardId: string) => {
+        try {
+            await updateDoc(doc(db, "boards", boardId), { status: SurfboardStatus.Live });
+            setBoards(prev => prev.map(b => b.id === boardId ? { ...b, status: SurfboardStatus.Live } : b));
+            alert('Listing has been approved and is now live.');
+        } catch (error) {
+            console.error("Error approving listing:", error);
+            alert("Failed to approve listing.");
+        }
+    }, [db]);
 
     const handleAdminToggleUserBlock = useCallback((userId: string) => {
         setUsers(prevUsers => {
@@ -1395,6 +1412,7 @@ const App: React.FC = () => {
                     appSettings={appSettings}
                     giveawayImages={giveawayImages}
                     onAdminDeleteListing={handleAdminDeleteListing}
+                    onAdminApproveListing={handleAdminApproveListing}
                     onAdminToggleUserBlock={handleAdminToggleUserBlock}
                     onBrandingUpdate={handleBrandingUpdate}
                     onAppSettingsUpdate={handleAppSettingsUpdate}

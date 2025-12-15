@@ -19,6 +19,7 @@ interface AdminPageProps {
     appSettings: AppSettingsState;
     giveawayImages: string[];
     onAdminDeleteListing: (boardId: string) => void;
+    onAdminApproveListing: (boardId: string) => void;
     onAdminToggleUserBlock: (userId: string) => void;
     onBrandingUpdate: (newBranding: BrandingState) => void;
     onAppSettingsUpdate: (newSettings: AppSettingsState) => void;

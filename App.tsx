@@ -90,6 +90,7 @@ const App: React.FC = () => {
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
     const [boardToRenewId, setBoardToRenewId] = useState<string | null>(null);
     const [isStagedCartOpen, setIsStagedCartOpen] = useState(false);
+    const [isAuthLoading, setIsAuthLoading] = useState(true);
 
     useEffect(() => {
         setVisibleListingsCount(15);
@@ -180,10 +181,13 @@ const App: React.FC = () => {
                     } else {
                         console.error("Error fetching user data:", error);
                     }
+                } finally {
+                    setIsAuthLoading(false);
                 }
             } else {
                 setCurrentUser(null);
                 setFilters(initialFilters);
+                setIsAuthLoading(false);
             }
         });
 
@@ -784,6 +788,7 @@ const App: React.FC = () => {
     const handleLogout = async () => {
         try {
             await signOut(auth);
+            navigate('/login');
             // State clear is handled by onAuthStateChanged
         } catch (error) {
             console.error("Logout error", error);
@@ -1364,6 +1369,14 @@ const App: React.FC = () => {
     }
 
     if (location.pathname === '/dashboard') {
+        if (isAuthLoading) {
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+            );
+        }
+
         if (!currentUser || currentUser.role !== 'admin') {
             return (
                 <div className="flex items-center justify-center min-h-screen bg-gray-100">

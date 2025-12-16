@@ -21,6 +21,7 @@ interface AdminPageProps {
     onAdminDeleteListing: (boardId: string) => void;
     onAdminApproveListing: (boardId: string) => void;
     onAdminToggleUserBlock: (userId: string) => void;
+    onAdminDeleteUser: (userId: string) => void;
     onBrandingUpdate: (newBranding: BrandingState) => void;
     onAppSettingsUpdate: (newSettings: AppSettingsState) => void;
     onGiveawayImagesUpdate: (images: string[]) => void;
@@ -110,7 +111,7 @@ const BrandingManager: React.FC<{
     );
 };
 
-const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListing, onAdminToggleUserBlock, branding, onBrandingUpdate, appSettings, onAppSettingsUpdate, giveawayImages, onGiveawayImagesUpdate, donationEntries }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListing, onAdminToggleUserBlock, onAdminDeleteUser, branding, onBrandingUpdate, appSettings, onAppSettingsUpdate, giveawayImages, onGiveawayImagesUpdate, donationEntries }) => {
     const [activeTab, setActiveTab] = useState<'listings' | 'users' | 'branding' | 'apps' | 'giveaways' | 'entries'>('listings');
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [listingSearchTerm, setListingSearchTerm] = useState('');
@@ -304,6 +305,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                                                 className={`w-24 text-sm font-semibold py-1 px-3 rounded-md ${user.isBlocked ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                                             >
                                                 {user.isBlocked ? 'Unblock' : 'Block'}
+                                            </button>
+                                            <button
+                                                onClick={() => onAdminDeleteUser(user.id)}
+                                                className="p-2 bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-800 rounded-md transition"
+                                                title="Delete User Permanently"
+                                            >
+                                                <TrashIcon />
                                             </button>
                                         </div>
                                     </div>

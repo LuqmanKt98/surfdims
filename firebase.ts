@@ -15,11 +15,14 @@ const firebaseConfig = {
     measurementId: import.meta.env.FIREBASE_MEASUREMENT_ID
 };
 
+import { getFunctions } from "firebase/functions";
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
 const db = getFirestore(app, "surfdims");
 const storage = getStorage(app);
+const functions = getFunctions(app);
 
-export { app, analytics, auth, db, storage };
+export { app, analytics, auth, db, storage, functions };

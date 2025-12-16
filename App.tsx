@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, collection, query, onSnapshot, setDoc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import { auth, db, functions } from './firebase';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import { Surfboard, FilterState, User, SurfboardStatus, Advertisement, ListItem, SortOption, Alert, BrandingState, AppNotification, AppSettingsState, DonationEntry, VerificationFlowStatus, Condition } from './types';
@@ -25,7 +26,7 @@ import SortIcon from './components/icons/SortIcon';
 import ShareModal from './components/ShareModal';
 import LearnMoreModal from './components/LearnMoreModal';
 import VerificationBanner from './components/VerificationBanner';
-import VerificationStatusModal from './components/VerificationStatusModal';
+
 import CharityModal from './components/CharityModal';
 import VolumeCalculatorModal from './components/VolumeCalculatorModal';
 import StagedBoardsCart from './components/StagedBoardsCart';
@@ -157,6 +158,13 @@ const App: React.FC = () => {
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     if (userDoc.exists()) {
                         const userData = userDoc.data() as User;
+                        let isVerified = userData.isVerified;
+
+                        // Sync Firebase Auth verification status to Firestore
+                        if (user.emailVerified && !userData.isVerified) {
+                            await updateDoc(doc(db, "users", user.uid), { isVerified: true });
+                            isVerified = true;
+                        }
 
                         // Auto-grant admin for specific email
                         if (user.email === 'eyemac2@gmail.com' && userData.role !== 'admin') {
@@ -165,7 +173,7 @@ const App: React.FC = () => {
                             alert('You have been recognized as an admin. Your role has been updated.');
                         }
 
-                        const currentUserData = { ...userData, id: user.uid };
+                        const currentUserData = { ...userData, id: user.uid, isVerified };
                         setCurrentUser(currentUserData);
                         setFilters(prev => ({ ...prev, country: currentUserData.country || 'All' }));
 
@@ -1096,6 +1104,26 @@ const App: React.FC = () => {
         });
     }, []);
 
+    const handleAdminDeleteUser = useCallback(async (userId: string) => {
+        if (!window.confirm('Are you sure you want to PERMANENTLY delete this user? This action cannot be undone and will remove their listings as well.')) {
+            return;
+        }
+
+        try {
+            const deleteUserFunction = httpsCallable(functions, 'deleteUser');
+            await deleteUserFunction({ uid: userId });
+
+            // Update local state
+            setUsers(prev => prev.filter(u => u.id !== userId));
+            setBoards(prev => prev.filter(b => b.sellerId !== userId));
+
+            alert('User has been permanently deleted.');
+        } catch (error: any) {
+            console.error("Error deleting user:", error);
+            alert(`Failed to delete user: ${error.message}`);
+        }
+    }, []);
+
     const handleMarkNotificationAsRead = useCallback((notificationId: string) => {
         if (!currentUser) return;
         const updatedNotifications = notifications.map(n => n.id === notificationId ? { ...n, isRead: true } : n);
@@ -1135,25 +1163,25 @@ const App: React.FC = () => {
         handleSelectBoard(notification.boardId);
     }, [handleMarkNotificationAsRead, handleSelectBoard]);
 
-    const handleInitiateVerification = useCallback(() => {
-        setVerificationStatus('pending');
-        // Simulate user going to their email and clicking the link
-        setTimeout(() => {
-            setVerificationStatus('verifying');
-        }, 2000);
+    const handleInitiateVerification = useCallback(async () => {
+        if (!auth.currentUser) return;
+
+        try {
+            await sendEmailVerification(auth.currentUser);
+            setVerificationStatus('pending');
+            alert("Verification email sent! Please check your inbox.");
+        } catch (error: any) {
+            console.error("Error sending verification email", error);
+            if (error.code === 'auth/too-many-requests') {
+                alert("Too many requests. Please wait a moment before trying again.");
+            } else {
+                alert("Failed to send verification email. Please try again later.");
+            }
+        }
     }, []);
 
-    const handleVerifyAccount = useCallback(() => {
-        if (!currentUser) return;
-        const updatedUser = { ...currentUser, isVerified: true };
-        setCurrentUser(updatedUser);
-        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-    }, [currentUser]);
-
-    const handleCloseVerificationModal = () => {
-        setVerificationStatus('unverified');
-        alert('Account verified successfully! You now have full access.');
-    };
+    // handleVerifyAccount and handleCloseVerificationModal are no longer needed
+    // as verification is handled via email link and onAuthStateChanged sync.
 
     const handleShowMore = useCallback(() => {
         setVisibleListingsCount(prevCount => prevCount + 15);
@@ -1416,6 +1444,8 @@ const App: React.FC = () => {
                     onClearAllNotifications={handleClearAllNotifications}
                     stagedBoardsCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
                     onCartClick={() => setIsStagedCartOpen(true)}
+                    onFaqClick={() => setIsFaqOpen(true)}
+                    onContactClick={() => setIsContactOpen(true)}
                 />
                 <AdminPage
                     boards={boards}
@@ -1427,10 +1457,37 @@ const App: React.FC = () => {
                     onAdminDeleteListing={handleAdminDeleteListing}
                     onAdminApproveListing={handleAdminApproveListing}
                     onAdminToggleUserBlock={handleAdminToggleUserBlock}
+                    onAdminDeleteUser={handleAdminDeleteUser}
                     onBrandingUpdate={handleBrandingUpdate}
                     onAppSettingsUpdate={handleAppSettingsUpdate}
                     onGiveawayImagesUpdate={handleGiveawayImagesUpdate}
                 />
+
+                {isFaqOpen && <FaqPage onClose={() => setIsFaqOpen(false)} onContactClick={handleOpenContactFromFaq} onOpenLearnMore={handleOpenLearnMoreFromFaq} onInstallClick={handleInstallPrompt} canInstall={!!deferredInstallPrompt} />}
+                {isContactOpen && <ContactPage onClose={() => setIsContactOpen(false)} />}
+
+                {isAccountSettingsOpen && currentUser && (
+                    <AccountSettingsModal
+                        currentUser={currentUser}
+                        onClose={() => setIsAccountSettingsOpen(false)}
+                        onUpdateUser={handleUpdateUser}
+                        onAddAlert={handleAddAlert}
+                        onDeleteAlert={handleDeleteAlert}
+                    />
+                )}
+
+                {currentUser && (
+                    <StagedBoardsCart
+                        stagedBoards={stagedNewBoards}
+                        onRemoveBoard={handleRemoveStagedBoard}
+                        onClearAll={handleClearStagedBoards}
+                        onProceedToPayment={handleProceedToPaymentFromCart}
+                        currencySymbol={getCurrencySymbol(currentUser.country)}
+                        boardFee={getNewBoardFee(currentUser.country)}
+                        isOpen={isStagedCartOpen}
+                        onClose={() => setIsStagedCartOpen(false)}
+                    />
+                )}
             </div>
         );
     }
@@ -1669,9 +1726,8 @@ const App: React.FC = () => {
                     currencySymbol={getCurrencySymbol(currentUser?.country)}
                 />
             )}
-            {verificationStatus === 'verifying' && (
-                <VerificationStatusModal onVerified={handleVerifyAccount} onClose={handleCloseVerificationModal} />
-            )}
+
+
             {isVolumeCalculatorOpen && (
                 <VolumeCalculatorModal
                     onClose={() => setIsVolumeCalculatorOpen(false)}

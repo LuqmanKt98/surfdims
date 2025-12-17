@@ -1518,7 +1518,7 @@ const App: React.FC = () => {
                 onCartClick={() => setIsStagedCartOpen(true)}
             />
 
-            {currentUser && !currentUser.isVerified && verificationStatus !== 'verifying' && (
+            {currentUser && !currentUser.isVerified && verificationStatus !== 'verifying' && currentUser.role !== 'admin' && (
                 <VerificationBanner onVerify={handleInitiateVerification} status={verificationStatus} />
             )}
 

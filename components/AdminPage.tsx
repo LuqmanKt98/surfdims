@@ -4,6 +4,7 @@ import { DEFAULT_BRANDING } from '../constants';
 import { COUNTRIES } from '../countries';
 import XIcon from './icons/XIcon';
 import TrashIcon from './icons/TrashIcon';
+import CheckCircleIcon from './icons/CheckCircleIcon';
 import AppIntegrations from './AppIntegrations';
 import GiveawaysManager from './GiveawaysManager';
 import EntriesManager from './EntriesManager';
@@ -111,7 +112,7 @@ const BrandingManager: React.FC<{
     );
 };
 
-const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListing, onAdminToggleUserBlock, onAdminDeleteUser, branding, onBrandingUpdate, appSettings, onAppSettingsUpdate, giveawayImages, onGiveawayImagesUpdate, donationEntries }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListing, onAdminApproveListing, onAdminToggleUserBlock, onAdminDeleteUser, branding, onBrandingUpdate, appSettings, onAppSettingsUpdate, giveawayImages, onGiveawayImagesUpdate, donationEntries }) => {
     const [activeTab, setActiveTab] = useState<'listings' | 'users' | 'branding' | 'apps' | 'giveaways' | 'entries'>('listings');
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [listingSearchTerm, setListingSearchTerm] = useState('');
@@ -255,6 +256,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                                                 <p className="text-xs text-gray-500">Status</p>
                                                 <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${board.status === 'Live' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{board.status}</span>
                                             </div>
+                                            {board.status === 'PendingVerification' && (
+                                                <button onClick={() => onAdminApproveListing(board.id)} className="p-2 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-full" aria-label="Approve listing" title="Approve Listing">
+                                                    <CheckCircleIcon />
+                                                </button>
+                                            )}
                                             <button onClick={() => onAdminDeleteListing(board.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full" aria-label="Delete listing">
                                                 <TrashIcon />
                                             </button>

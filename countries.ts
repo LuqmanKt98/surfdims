@@ -14,10 +14,10 @@ export interface Country {
 }
 
 const allCountries: Country[] = [
-    { 
-        name: 'Australia', 
-        code: 'AU', 
-        currency: 'AUD', 
+    {
+        name: 'Australia',
+        code: 'AU',
+        currency: 'AUD',
         symbol: 'A$',
         newBoardFee: 10,
         regions: [
@@ -41,10 +41,10 @@ const allCountries: Country[] = [
     { name: 'Japan', code: 'JP', currency: 'USD', symbol: '$', newBoardFee: 5, regions: [] },
     { name: 'Mexico', code: 'MX', currency: 'USD', symbol: '$', newBoardFee: 5, regions: [] },
     { name: 'Morocco', code: 'MA', currency: 'USD', symbol: '$', newBoardFee: 5, regions: [] },
-    { 
-        name: 'New Zealand', 
-        code: 'NZ', 
-        currency: 'NZD', 
+    {
+        name: 'New Zealand',
+        code: 'NZ',
+        currency: 'NZD',
         symbol: 'NZ$',
         newBoardFee: 10,
         regions: [
@@ -67,16 +67,37 @@ const allCountries: Country[] = [
         ]
     },
     { name: 'Nicaragua', code: 'NI', currency: 'USD', symbol: '$', newBoardFee: 5, regions: [] },
+    {
+        name: 'Pakistan',
+        code: 'PK',
+        currency: 'PKR',
+        symbol: 'Rs',
+        newBoardFee: 10,
+        regions: [
+            { name: 'Islamabad' },
+            { name: 'Karachi' },
+            { name: 'Lahore' },
+            { name: 'Rawalpindi' },
+            { name: 'Faisalabad' },
+            { name: 'Multan' },
+            { name: 'Peshawar' },
+            { name: 'Quetta' },
+            { name: 'Gujranwala' },
+            { name: 'Sialkot' },
+            { name: 'Hyderabad' },
+            { name: 'Abbottabad' },
+        ]
+    },
     { name: 'Peru', code: 'PE', currency: 'USD', symbol: '$', newBoardFee: 5, regions: [] },
     { name: 'Portugal', code: 'PT', currency: 'EUR', symbol: '€', newBoardFee: 5, regions: [] },
     { name: 'South Africa', code: 'ZA', currency: 'USD', symbol: '$', newBoardFee: 5, regions: [] },
     { name: 'Spain', code: 'ES', currency: 'EUR', symbol: '€', newBoardFee: 5, regions: [] },
     { name: 'Tahiti (French Polynesia)', code: 'PF', currency: 'USD', symbol: '$', newBoardFee: 5, regions: [] },
     { name: 'United Kingdom', code: 'GB', currency: 'EUR', symbol: '€', newBoardFee: 5, regions: [] },
-    { 
-        name: 'United States', 
-        code: 'US', 
-        currency: 'USD', 
+    {
+        name: 'United States',
+        code: 'US',
+        currency: 'USD',
         symbol: '$',
         newBoardFee: 5,
         regions: [

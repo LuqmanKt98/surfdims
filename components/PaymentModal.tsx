@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
 import { stripePromise } from '../stripe';
 import { User } from '../types';
-import { getCurrencySymbol } from '../countries';
+import { getCurrencySymbol, COUNTRIES } from '../countries';
 import XIcon from './icons/XIcon';
 import CreditCardIcon from './icons/CreditCardIcon';
 import StripePaymentForm from './StripePaymentForm.tsx';
@@ -42,7 +42,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ amount, itemDescription, cu
                 <Elements stripe={stripePromise}>
                     <StripePaymentForm
                         amount={amount}
-                        currency={currentUser.country === 'NZ' ? 'nzd' : currentUser.country === 'AU' ? 'aud' : 'usd'}
+                        currency={currentUser.country ? (COUNTRIES.find(c => c.code === currentUser.country)?.currency.toLowerCase() || 'usd') : 'usd'}
+                        currencySymbol={currencySymbol}
                         onSuccess={onPaymentSuccess}
                         onCancel={onClose}
                     />

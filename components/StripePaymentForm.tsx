@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../firebase';
 import SpinnerIcon from './icons/SpinnerIcon';
-import { STRIPE_SECRET_KEY } from '../stripe';
 
 interface StripePaymentFormProps {
     amount: number;
     currency: string;
+    currencySymbol?: string;
     onSuccess: () => void;
     onCancel: () => void;
 }
 
+// ... (options object unchanged)
 const CARD_ELEMENT_OPTIONS = {
     style: {
         base: {
@@ -28,7 +31,7 @@ const CARD_ELEMENT_OPTIONS = {
     },
 };
 
-const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency, onSuccess, onCancel }) => {
+const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency, currencySymbol = '$', onSuccess, onCancel }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState<string | null>(null);
@@ -54,9 +57,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency,
         }
 
         try {
-            // Create a PaymentIntent on the server
-            // NOTE: In production, you MUST create the PaymentIntent on your server
-            // For this demo, we'll simulate it client-side
+            // Create a PaymentIntent on the server via Cloud Function
             const paymentIntent = await createPaymentIntent(amount, currency);
 
             // Confirm the payment on the client
@@ -77,35 +78,17 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency,
                 setIsProcessing(false);
             }
         } catch (err: any) {
+            console.error("Payment Error:", err);
             setError(err.message || 'An unexpected error occurred');
             setIsProcessing(false);
         }
     };
 
-    // Simulate creating a PaymentIntent
-    // In production, this should be done on your server
     const createPaymentIntent = async (amount: number, currency: string) => {
         try {
-            const response = await fetch('https://api.stripe.com/v1/payment_intents', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    amount: Math.round(amount * 100).toString(), // Convert to cents
-                    currency: currency.toLowerCase(),
-                    'automatic_payment_methods[enabled]': 'true',
-                }).toString(),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || 'Failed to create payment intent');
-            }
-
-            const data = await response.json();
-            return data;
+            const createPaymentIntentFn = httpsCallable(functions, 'createPaymentIntent');
+            const result = await createPaymentIntentFn({ amount, currency });
+            return result.data as { client_secret: string; id: string };
         } catch (error: any) {
             throw new Error(error.message || 'Failed to initialize payment');
         }
@@ -147,7 +130,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency,
                             <SpinnerIcon /> Processing...
                         </>
                     ) : (
-                        `Pay $${amount.toFixed(2)}`
+                        `Pay ${currencySymbol}${amount.toFixed(2)}`
                     )}
                 </button>
             </div>

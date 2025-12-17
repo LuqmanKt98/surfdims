@@ -13,28 +13,24 @@ service cloud.firestore {
       allow read: if true;
       allow create: if request.auth != null 
                     && request.resource.data.sellerId == request.auth.uid
-                    // Allow 'Live' for Used (trusted flow? or usually should be Pending too if async)
-                    // Allow 'PendingVerification' for New/Paid
-                    && (
-                      (request.resource.data.status == 'Live' && request.resource.data.condition == 'Used')
-                      ||
-                      (request.resource.data.status == 'PendingVerification' && request.resource.data.condition == 'New')
-                    )
-                    // Enforce paid/new vs free/used relationship (initial state)
-                    && (
-                      (request.resource.data.condition == 'New' && request.resource.data.isPaid == false) // Starts as false, function verifying
-                      || 
-                      (request.resource.data.condition == 'Used' && request.resource.data.isPaid == false)
-                    )
-                    // Schema Compliance Validation
                     && request.resource.data.ownerId == request.auth.uid
                     && request.resource.data.lifecycleStatus == 'active'
+                    // Ensure consistency between Condition and Status/Payments
                     && (
-                      (request.resource.data.condition == 'New' && request.resource.data.listingType == 'new')
+                      // Used Boards: Live, Used, Not Paid
+                      (
+                        request.resource.data.condition == 'Used'
+                        && request.resource.data.status == 'Live'
+                        && request.resource.data.isPaid == false
+                      )
                       ||
-                      (request.resource.data.condition == 'Used' && request.resource.data.listingType == 'used')
-                    )
-                    && request.resource.data.storagePath == ('images/' + request.auth.uid);
+                      // New Boards: Pending Verification, New, Not Paid (initially)
+                      (
+                        request.resource.data.condition == 'New'
+                        && request.resource.data.status == 'PendingVerification'
+                        && request.resource.data.isPaid == false
+                      )
+                    );
 
       allow update: if request.auth != null 
                     && resource.data.sellerId == request.auth.uid

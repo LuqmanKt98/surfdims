@@ -1,8 +1,9 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+require('dotenv').config();
 const { getFirestore } = require('firebase-admin/firestore');
 admin.initializeApp();
-const db = getFirestore('surfdims');
+const db = getFirestore();
 
 /**
  * Triggered when a new board is created.
@@ -214,3 +215,49 @@ exports.cleanupOldListings = functions.pubsub
     });
 
 
+
+/**
+ * HTTPS Callable function to create a Stripe Payment Intent.
+ * This is required for Live Mode to keep the Secret Key secure on the server.
+ */
+exports.createPaymentIntent = functions.https.onCall(async (data, context) => {
+    // Check authentication if needed, but for now we allow any user (or maybe just auth users)
+    // if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in');
+
+    const amount = data.amount; // in cents or dollars? Client sends dollars usually, let's verify.
+    const currency = data.currency;
+
+    console.log(`createPaymentIntent called with amount: ${amount}, currency: ${currency}`);
+
+    if (!amount || !currency) {
+        throw new functions.https.HttpsError('invalid-argument', 'Amount and Currency are required');
+    }
+
+    // Try to get key from process.env (local dev/dotenv) or functions.config (deployed)
+    const stripeKey = process.env.STRIPE_SECRET_KEY || (functions.config().stripe && functions.config().stripe.secret);
+
+    if (!stripeKey) {
+        console.error("STRIPE_SECRET_KEY is missing in both process.env and functions.config()");
+        throw new functions.https.HttpsError('failed-precondition', 'Server configuration error: Missing Stripe Key');
+    }
+
+    const stripe = require("stripe")(stripeKey);
+
+    try {
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount * 100), // Convert dollars to cents
+            currency: currency,
+            automatic_payment_methods: { enabled: true },
+        });
+
+        console.log("PaymentIntent created successfully:", paymentIntent.id);
+
+        return {
+            client_secret: paymentIntent.client_secret,
+            id: paymentIntent.id
+        };
+    } catch (error) {
+        console.error("Stripe Error in createPaymentIntent:", error);
+        throw new functions.https.HttpsError('internal', error.message || 'Stripe payment creation failed');
+    }
+});

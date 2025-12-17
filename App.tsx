@@ -4,8 +4,7 @@ import { onAuthStateChanged, signOut, sendEmailVerification } from 'firebase/aut
 import { doc, getDoc, collection, query, onSnapshot, setDoc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from './firebase';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
+import AuthModal from './components/AuthModal';
 import { Surfboard, FilterState, User, SurfboardStatus, Advertisement, ListItem, SortOption, Alert, BrandingState, AppNotification, AppSettingsState, DonationEntry, VerificationFlowStatus, Condition } from './types';
 import { INITIAL_BOARDS, MOCK_USERS, SLIDER_RANGES, DEFAULT_BRANDING, MOCK_ENTRIES } from './constants';
 import { getCurrencySymbol, getNewBoardFee } from './countries';
@@ -91,6 +90,10 @@ const App: React.FC = () => {
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
     const [boardToRenewId, setBoardToRenewId] = useState<string | null>(null);
     const [isStagedCartOpen, setIsStagedCartOpen] = useState(false);
+
+    // Auth Modal State
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [authModalView, setAuthModalView] = useState<'login' | 'signup'>('login');
     const [isAuthLoading, setIsAuthLoading] = useState(true);
 
     useEffect(() => {
@@ -514,6 +517,9 @@ const App: React.FC = () => {
         };
 
         try {
+            console.log("Attempting to create board with data:", JSON.stringify(boardWithId, null, 2));
+            console.log("Current user ID:", currentUser.id);
+
             await setDoc(doc(db, "boards", newBoardId), boardWithId);
 
             if (location) {
@@ -525,8 +531,10 @@ const App: React.FC = () => {
 
             setIsListingFormOpen(false);
             handleSelectBoard(newBoardId);
-        } catch (error) {
-            console.error("Error adding board: ", error);
+        } catch (error: any) {
+            console.error("Error adding board code: ", error.code);
+            console.error("Error adding board message: ", error.message);
+            console.error("Full error: ", error);
             alert("Failed to create listing. Please try again.");
         }
     }, [currentUser, handleSelectBoard]);
@@ -796,7 +804,7 @@ const App: React.FC = () => {
     const handleLogout = async () => {
         try {
             await signOut(auth);
-            navigate('/login');
+            navigate('/');
             // State clear is handled by onAuthStateChanged
         } catch (error) {
             console.error("Logout error", error);
@@ -866,8 +874,9 @@ const App: React.FC = () => {
     }, []);
 
     const promptForAuth = useCallback((reason: string) => {
-        navigate('/login');
-    }, [navigate]);
+        setAuthModalView('login');
+        setIsAuthModalOpen(true);
+    }, []);
 
     const handleToggleFavs = useCallback((boardId: string) => {
         if (!currentUser) {
@@ -1397,13 +1406,7 @@ const App: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-800">{pageTitle}</h1>
     );
 
-    if (location.pathname === '/login') {
-        return <LoginPage />;
-    }
 
-    if (location.pathname === '/signup') {
-        return <SignupPage />;
-    }
 
     if (location.pathname === '/dashboard') {
         if (isAuthLoading) {
@@ -1436,7 +1439,10 @@ const App: React.FC = () => {
                     branding={branding}
                     currentUser={currentUser}
                     onListBoardClick={handleListBoardClick}
-                    onLoginClick={() => navigate('/login')}
+                    onLoginClick={() => {
+                        setAuthModalView('login');
+                        setIsAuthModalOpen(true);
+                    }}
                     onLogout={handleLogout}
                     onShowFavs={() => { setView('favs'); navigate('/'); }}
                     onShowMyListings={() => { setView('myListings'); navigate('/'); }}
@@ -1497,6 +1503,12 @@ const App: React.FC = () => {
                         onClose={() => setIsStagedCartOpen(false)}
                     />
                 )}
+
+                <AuthModal
+                    isOpen={isAuthModalOpen}
+                    onClose={() => setIsAuthModalOpen(false)}
+                    initialView={authModalView}
+                />
             </div>
         );
     }
@@ -1507,7 +1519,10 @@ const App: React.FC = () => {
                 branding={branding}
                 currentUser={currentUser}
                 onListBoardClick={handleListBoardClick}
-                onLoginClick={() => navigate('/login')}
+                onLoginClick={() => {
+                    setAuthModalView('login');
+                    setIsAuthModalOpen(true);
+                }}
                 onLogout={handleLogout}
                 onShowFavs={() => setView('favs')}
                 onShowMyListings={() => setView('myListings')}
@@ -1755,6 +1770,12 @@ const App: React.FC = () => {
                     onClose={() => setIsStagedCartOpen(false)}
                 />
             )}
+
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                initialView={authModalView}
+            />
         </div>
     );
 };

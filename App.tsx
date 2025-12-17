@@ -1109,19 +1109,28 @@ const App: React.FC = () => {
             return;
         }
 
+        // Admin SDK removal request: This functionality is disabled.
+        alert("This functionality has been disabled as per your request.");
+        /* 
         try {
             const deleteUserFunction = httpsCallable(functions, 'deleteUser');
-            await deleteUserFunction({ uid: userId });
+            const result = await deleteUserFunction({ uid: userId });
+            console.log(result.data);
 
             // Update local state
             setUsers(prev => prev.filter(u => u.id !== userId));
-            setBoards(prev => prev.filter(b => b.sellerId !== userId));
-
             alert('User has been permanently deleted.');
         } catch (error: any) {
             console.error("Error deleting user:", error);
-            alert(`Failed to delete user: ${error.message}`);
+            if (error.code === 'functions/not-found' || error.message.includes('NOT_FOUND')) {
+                alert("Cloud Function not found or not reachable. Please ensure you have deployed your functions using 'firebase deploy --only functions'.");
+            } else if (error.code === 'functions/permission-denied') {
+                alert("Permission denied. You must be an admin to delete users.");
+            } else {
+                alert(`Failed to delete user: ${error.message}`);
+            }
         }
+        */
     }, []);
 
     const handleMarkNotificationAsRead = useCallback((notificationId: string) => {

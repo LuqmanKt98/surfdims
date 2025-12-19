@@ -1024,7 +1024,11 @@ const App: React.FC = () => {
 
     const handleMarkAsSold = useCallback(async (boardId: string) => {
         try {
-            await updateDoc(doc(db, "boards", boardId), { status: SurfboardStatus.Sold });
+            await updateDoc(doc(db, "boards", boardId), { 
+                status: SurfboardStatus.Sold,
+                lifecycleStatus: 'inactive',
+                inactiveAt: new Date().toISOString()
+            });
             handleCloseDetail();
             alert('Listing marked as sold!');
         } catch (error) {

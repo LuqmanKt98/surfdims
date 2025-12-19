@@ -12,7 +12,7 @@ interface PaymentModalProps {
     itemDescription: string;
     currentUser: User;
     onClose: () => void;
-    onPaymentSuccess: () => void;
+    onPaymentSuccess: (paymentIntentId: string) => void;
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ amount, itemDescription, currentUser, onClose, onPaymentSuccess }) => {

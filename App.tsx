@@ -633,7 +633,7 @@ const App: React.FC = () => {
         setIsVolumeCalculatorOpen(false);
     }, []);
 
-    const handlePaymentSuccess = async () => {
+    const handlePaymentSuccess = async (paymentIntentId: string) => {
         // Renewal Flow
         if (boardToRenewId) {
             const boardToRenew = boards.find(b => b.id === boardToRenewId);
@@ -715,7 +715,7 @@ const App: React.FC = () => {
                         createdAt: serverTimestamp(),
                         inactiveAt: null,
                         storagePath: `images/${currentUser.id}`,
-                        paymentIntentId: 'pi_mock_' + Date.now() // Simulation of Stripe Payment Intent ID
+                        paymentIntentId: paymentIntentId
                     };
                     await setDoc(doc(db, "boards", newId), newBoard);
                     return newBoard;

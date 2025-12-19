@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { StripeCardElement } from '@stripe/stripe-js';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 import SpinnerIcon from './icons/SpinnerIcon';
@@ -8,7 +9,7 @@ interface StripePaymentFormProps {
     amount: number;
     currency: string;
     currencySymbol?: string;
-    onSuccess: () => void;
+    onSuccess: (paymentIntentId: string) => void;
     onCancel: () => void;
 }
 
@@ -48,7 +49,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency,
         setIsProcessing(true);
         setError(null);
 
-        const cardElement = elements.getElement(CardElement);
+        const cardElement = elements.getElement(CardElement) as unknown as StripeCardElement;
 
         if (!cardElement) {
             setError('Card element not found');
@@ -74,7 +75,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency,
                 setError(stripeError.message || 'Payment failed');
                 setIsProcessing(false);
             } else if (confirmedPayment && confirmedPayment.status === 'succeeded') {
-                onSuccess();
+                onSuccess(confirmedPayment.id);
                 setIsProcessing(false);
             }
         } catch (err: any) {
@@ -86,10 +87,28 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency,
 
     const createPaymentIntent = async (amount: number, currency: string) => {
         try {
-            const createPaymentIntentFn = httpsCallable(functions, 'createPaymentIntent');
-            const result = await createPaymentIntentFn({ amount, currency });
-            return result.data as { client_secret: string; id: string };
+            // Updated to use the new Node.js server endpoint
+            // TODO: In production, this URL should be an environment variable
+            const response = await fetch('http://localhost:4242/create-payment-intent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ amount, currency }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Payment initialization failed');
+            }
+
+            const data = await response.json();
+            return {
+                client_secret: data.clientSecret || data.client_secret,
+                id: data.id
+            };
         } catch (error: any) {
+            console.error("Error creating payment intent:", error);
             throw new Error(error.message || 'Failed to initialize payment');
         }
     };
@@ -135,9 +154,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency,
                 </button>
             </div>
 
-            <p className="text-xs text-gray-500 text-center mt-4">
-                Test card: 4242 4242 4242 4242 | Any future date | Any 3 digits
-            </p>
+
         </form>
     );
 };

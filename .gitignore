@@ -29,3 +29,13 @@ gen-lang-client-*.json
 # Server
 server/node_modules
 server/.env
+
+# Vercel
+.vercel
+
+# Firebase service account keys
+serviceAccountKey.json
+*serviceAccountKey*.json
+
+# Functions
+functions/node_modules

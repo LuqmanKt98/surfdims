@@ -87,9 +87,8 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ amount, currency,
 
     const createPaymentIntent = async (amount: number, currency: string) => {
         try {
-            // Updated to use the new Node.js server endpoint
-            // TODO: In production, this URL should be an environment variable
-            const response = await fetch('http://localhost:4242/create-payment-intent', {
+            // Uses Vercel serverless function
+            const response = await fetch('/api/create-payment-intent', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

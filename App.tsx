@@ -176,6 +176,13 @@ const App: React.FC = () => {
                             alert('You have been recognized as an admin. Your role has been updated.');
                         }
 
+                    if (userData.isBlocked) {
+                            await signOut(auth);
+                            alert("Your account has been suspended. Please contact support.");
+                            setIsAuthLoading(false);
+                            return;
+                        }
+
                         const currentUserData = { ...userData, id: user.uid, isVerified };
                         setCurrentUser(currentUserData);
                         setFilters(prev => ({ ...prev, country: currentUserData.country || 'All' }));
@@ -1105,46 +1112,48 @@ const App: React.FC = () => {
         }
     }, [db]);
 
-    const handleAdminToggleUserBlock = useCallback((userId: string) => {
-        setUsers(prevUsers => {
-            const user = prevUsers.find(u => u.id === userId);
-            if (!user) return prevUsers;
-            const action = user.isBlocked ? 'unblock' : 'block';
-            if (window.confirm(`Are you sure you want to ${action} this user?`)) {
-                return prevUsers.map(u => u.id === userId ? { ...u, isBlocked: !u.isBlocked } : u);
+    const handleAdminToggleUserBlock = useCallback(async (userId: string) => {
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+        
+        const action = user.isBlocked ? 'unblock' : 'block';
+        if (window.confirm(`Are you sure you want to ${action} this user?`)) {
+            try {
+                await updateDoc(doc(db, "users", userId), { isBlocked: !user.isBlocked });
+                
+                setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, isBlocked: !u.isBlocked } : u));
+                alert(`User has been ${action}ed.`);
+            } catch (error) {
+                console.error(`Error ${action}ing user:`, error);
+                alert(`Failed to ${action} user.`);
             }
-            return prevUsers;
-        });
-    }, []);
+        }
+    }, [users]);
 
     const handleAdminDeleteUser = useCallback(async (userId: string) => {
         if (!window.confirm('Are you sure you want to PERMANENTLY delete this user? This action cannot be undone and will remove their listings as well.')) {
             return;
         }
 
-        // Admin SDK removal request: This functionality is disabled.
-        alert("This functionality has been disabled as per your request.");
-        /* 
         try {
-            const deleteUserFunction = httpsCallable(functions, 'deleteUser');
-            const result = await deleteUserFunction({ uid: userId });
-            console.log(result.data);
+            // 1. Delete user document
+            await deleteDoc(doc(db, "users", userId));
 
-            // Update local state
+            // 2. Delete user's listings
+            const userBoards = boards.filter(b => b.sellerId === userId);
+            const deletePromises = userBoards.map(board => deleteDoc(doc(db, "boards", board.id)));
+            await Promise.all(deletePromises);
+
+            // 3. Update local state
             setUsers(prev => prev.filter(u => u.id !== userId));
-            alert('User has been permanently deleted.');
+            setBoards(prev => prev.filter(b => b.sellerId !== userId));
+            
+            alert('User and their listings have been permanently deleted.');
         } catch (error: any) {
             console.error("Error deleting user:", error);
-            if (error.code === 'functions/not-found' || error.message.includes('NOT_FOUND')) {
-                alert("Cloud Function not found or not reachable. Please ensure you have deployed your functions using 'firebase deploy --only functions'.");
-            } else if (error.code === 'functions/permission-denied') {
-                alert("Permission denied. You must be an admin to delete users.");
-            } else {
-                alert(`Failed to delete user: ${error.message}`);
-            }
+            alert(`Failed to delete user: ${error.message}`);
         }
-        */
-    }, []);
+    }, [boards]);
 
     const handleMarkNotificationAsRead = useCallback((notificationId: string) => {
         if (!currentUser) return;

@@ -176,7 +176,7 @@ const App: React.FC = () => {
                             alert('You have been recognized as an admin. Your role has been updated.');
                         }
 
-                    if (userData.isBlocked) {
+                        if (userData.isBlocked) {
                             await signOut(auth);
                             alert("Your account has been suspended. Please contact support.");
                             setIsAuthLoading(false);
@@ -1031,18 +1031,18 @@ const App: React.FC = () => {
 
     const handleMarkAsSold = useCallback(async (boardId: string) => {
         try {
-            await updateDoc(doc(db, "boards", boardId), { 
+            await updateDoc(doc(db, "boards", boardId), {
                 status: SurfboardStatus.Sold,
                 lifecycleStatus: 'inactive',
                 inactiveAt: new Date().toISOString()
             });
-            handleCloseDetail();
+            // Keep detail open so user can see status change or relist
             alert('Listing marked as sold!');
         } catch (error) {
             console.error("Error marking as sold", error);
             alert("Failed to update status.");
         }
-    }, [handleCloseDetail]);
+    }, []);
 
     const handleRenewListing = useCallback((boardId: string) => {
         const boardToRenew = boards.find(b => b.id === boardId);
@@ -1065,9 +1065,19 @@ const App: React.FC = () => {
         }
     }, [boards, currentUser]);
 
-    const handleRelistBoard = useCallback((boardId: string) => {
-        setBoards(prev => prev.map(b => b.id === boardId ? { ...b, status: SurfboardStatus.Live, listedDate: new Date().toISOString() } : b));
-        alert('Board has been relisted!');
+    const handleRelistBoard = useCallback(async (boardId: string) => {
+        try {
+            await updateDoc(doc(db, "boards", boardId), {
+                status: SurfboardStatus.Live,
+                lifecycleStatus: 'active',
+                inactiveAt: null,
+                listedDate: new Date().toISOString()
+            });
+            alert('Board has been relisted!');
+        } catch (error) {
+            console.error("Error relisting board", error);
+            alert("Failed to relist board.");
+        }
     }, []);
 
     const handleDeleteListing = useCallback(async (boardId: string) => {
@@ -1115,12 +1125,12 @@ const App: React.FC = () => {
     const handleAdminToggleUserBlock = useCallback(async (userId: string) => {
         const user = users.find(u => u.id === userId);
         if (!user) return;
-        
+
         const action = user.isBlocked ? 'unblock' : 'block';
         if (window.confirm(`Are you sure you want to ${action} this user?`)) {
             try {
                 await updateDoc(doc(db, "users", userId), { isBlocked: !user.isBlocked });
-                
+
                 setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, isBlocked: !u.isBlocked } : u));
                 alert(`User has been ${action}ed.`);
             } catch (error) {
@@ -1147,7 +1157,7 @@ const App: React.FC = () => {
             // 3. Update local state
             setUsers(prev => prev.filter(u => u.id !== userId));
             setBoards(prev => prev.filter(b => b.sellerId !== userId));
-            
+
             alert('User and their listings have been permanently deleted.');
         } catch (error: any) {
             console.error("Error deleting user:", error);

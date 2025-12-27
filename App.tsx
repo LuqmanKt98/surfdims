@@ -12,6 +12,7 @@ import Header from './components/Header';
 import BoardList from './components/BoardList';
 import FilterPanel from './components/FilterPanel';
 import ListingForm from './components/ListingForm';
+import StagedBoardsCart from './components/StagedBoardsCart';
 
 import FilterIcon from './components/icons/FilterIcon';
 import ListingDetail from './components/ListingDetail';
@@ -28,7 +29,9 @@ import VerificationBanner from './components/VerificationBanner';
 
 import CharityModal from './components/CharityModal';
 import VolumeCalculatorModal from './components/VolumeCalculatorModal';
-import StagedBoardsCart from './components/StagedBoardsCart';
+
+import AboutUsPage from './components/AboutUsPage';
+import { AdminAd } from './types';
 
 const initialFilters: FilterState = {
     brand: '',
@@ -43,6 +46,7 @@ const initialFilters: FilterState = {
     maxThickness: SLIDER_RANGES.thickness.max,
     minVolume: SLIDER_RANGES.volume.min,
     maxVolume: SLIDER_RANGES.volume.max,
+    condition: 'All',
 };
 
 const App: React.FC = () => {
@@ -75,7 +79,7 @@ const App: React.FC = () => {
     const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
     const [boardToShare, setBoardToShare] = useState<Surfboard | null>(null);
     const [branding, setBranding] = useState<BrandingState>(DEFAULT_BRANDING);
-    const [appSettings, setAppSettings] = useState<AppSettingsState>({ mailchimpApiKey: '' });
+    const [appSettings, setAppSettings] = useState<AppSettingsState>({ mailchimpApiKey: '', adsenseCode: '', contactEmail: '' });
 
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLearnMoreOpen, setIsLearnMoreOpen] = useState(false);
@@ -84,17 +88,24 @@ const App: React.FC = () => {
     const [giveawayImages, setGiveawayImages] = useState<string[]>([]);
     const [verificationStatus, setVerificationStatus] = useState<VerificationFlowStatus>('unverified');
     const [visibleListingsCount, setVisibleListingsCount] = useState(15);
+    const [adminAds, setAdminAds] = useState<AdminAd[]>([]);
+    const [adRotationOffset, setAdRotationOffset] = useState(0);
+    const [isAboutUsOpen, setIsAboutUsOpen] = useState(false);
+    const [isAdminPageOpen, setIsAdminPageOpen] = useState(false);
+    const [authModalInitialIsLogin, setAuthModalInitialIsLogin] = useState(true);
+
     const mobileSortDropdownRef = useRef<HTMLDivElement>(null);
     const desktopSortDropdownRef = useRef<HTMLDivElement>(null);
     const [filters, setFilters] = useState<FilterState>(initialFilters);
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
     const [boardToRenewId, setBoardToRenewId] = useState<string | null>(null);
-    const [isStagedCartOpen, setIsStagedCartOpen] = useState(false);
 
     // Auth Modal State
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [authModalView, setAuthModalView] = useState<'login' | 'signup'>('login');
     const [isAuthLoading, setIsAuthLoading] = useState(true);
+    const [isStagedCartOpen, setIsStagedCartOpen] = useState(false);
+    const [authReason, setAuthReason] = useState<string>('');
 
     useEffect(() => {
         setVisibleListingsCount(15);
@@ -297,6 +308,27 @@ const App: React.FC = () => {
             setBoards(boardsData); // This ensures all users see the same DB data (filtered by view later)
         });
         return () => unsubscribe();
+    }, []);
+
+    // Fetch Ads from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "ads"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const adsData: AdminAd[] = [];
+            querySnapshot.forEach((doc) => {
+                adsData.push({ id: doc.id, ...doc.data() } as AdminAd);
+            });
+            setAdminAds(adsData);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Ad Rotation timer
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setAdRotationOffset(prev => prev + 1);
+        }, 10000); // Rotate every 10 seconds
+        return () => clearInterval(interval);
     }, []);
 
     // Handle deep linking and browser history
@@ -631,6 +663,35 @@ const App: React.FC = () => {
         }
     }, []);
 
+    const handleAdminAdsUpdate = useCallback(async (updatedAds: AdminAd[]) => {
+        // Logic to sync entire ads list to firestore? 
+        // Or updatedAds implies the new state? 
+        // AdminPage usually passes the full new list or we handle add/remove individually?
+        // Source AdminPage calls onAdminAdsUpdate(newAds).
+        // Since Firestore collection management is best done by ID, we'll try to sync.
+        // For simplicity, we can assume the AdminPage handles the list and we just need to save changes.
+        // However, a set of ads means adding/removing/updating docs.
+        // Strategy: Iterate and setDoc for each. Delete missing? 
+        // Easier: Just update state for now? No, must persist.
+        // Let's implement full sync simply by updating each doc.
+
+        try {
+            const promises = updatedAds.map(ad => setDoc(doc(db, "ads", ad.id), ad));
+            // Also need to handle deletions. 
+            // Find IDs in current state that are NOT in updatedAds
+            const newIds = new Set(updatedAds.map(ad => ad.id));
+            const adsToDelete = adminAds.filter(ad => !newIds.has(ad.id));
+            const deletePromises = adsToDelete.map(ad => deleteDoc(doc(db, "ads", ad.id)));
+
+            await Promise.all([...promises, ...deletePromises]);
+            // Local state will update via onSnapshot
+            // setAdminAds(updatedAds); // No need, snapshot will do it
+        } catch (error) {
+            console.error("Error updating ads", error);
+            alert("Failed to update ads.");
+        }
+    }, [adminAds]);
+
     const handleApplyVolumeRange = useCallback((min: number, max: number) => {
         setFilters(prev => ({
             ...prev,
@@ -826,10 +887,11 @@ const App: React.FC = () => {
             }
             setEditingBoard(null);
             setIsListingFormOpen(true);
-        } else {
-            promptForAuth('Please log in to list a board.');
         }
     };
+
+    const handlePromptLogin = () => promptForAuth("Please log in to continue.", true);
+    const handlePromptSignup = () => promptForAuth("Create an account to continue.", false);
 
     const handleCloseListingForm = () => {
         setIsListingFormOpen(false);
@@ -880,8 +942,9 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const promptForAuth = useCallback((reason: string) => {
-        setAuthModalView('login');
+    const promptForAuth = useCallback((reason: string, initialIsLogin: boolean = true) => {
+        setAuthReason(reason);
+        setAuthModalInitialIsLogin(initialIsLogin);
         setIsAuthModalOpen(true);
     }, []);
 
@@ -1208,7 +1271,11 @@ const App: React.FC = () => {
         if (!auth.currentUser) return;
 
         try {
-            await sendEmailVerification(auth.currentUser);
+            const actionCodeSettings = {
+                url: window.location.origin, // Redirect users back to the app after verification
+                handleCodeInApp: false, // Let Firebase handle the email action page
+            };
+            await sendEmailVerification(auth.currentUser, actionCodeSettings);
             setVerificationStatus('pending');
             alert("Verification email sent! Please check your inbox.");
         } catch (error: any) {
@@ -1318,33 +1385,32 @@ const App: React.FC = () => {
         return filteredBoards.slice(0, visibleListingsCount);
     }, [filteredBoards, visibleListingsCount]);
 
-    const listItemsWithAds = useMemo((): ListItem[] => {
-        if (view === 'favs' || view === 'myListings') {
-            return paginatedBoards;
-        }
+    const activeAds = useMemo(() => adminAds.filter(ad => ad.isActive), [adminAds]);
+
+    const listItems = useMemo((): ListItem[] => {
+        if (view === 'favs' || view === 'myListings') return paginatedBoards;
 
         const itemsWithAds: ListItem[] = [];
         const adInterval = 15;
-        const adPositionInChunk = 5; // Place ad after the 5th item in a chunk of 15
+        const adPositionInChunk = 5;
+        let adIndex = adRotationOffset; // Dynamic starting index with rotation
 
         for (let i = 0; i < paginatedBoards.length; i++) {
             itemsWithAds.push(paginatedBoards[i]);
-            // Insert an ad after the 5th item of each 15-item chunk.
+            // Logic to insert ad
             if ((i + 1) > 0 && (i + 1) % adInterval === adPositionInChunk) {
-                itemsWithAds.push({ id: `ad-${i}`, type: 'ad' });
+                if (activeAds.length > 0) {
+                    const adData = activeAds[adIndex % activeAds.length];
+                    itemsWithAds.push({ id: `ad-${i}`, type: 'ad', adData });
+                    adIndex++;
+                } else if (appSettings.adsenseCode) {
+                    // Fallback to generic ad placeholder if needed, or just standard ad
+                    itemsWithAds.push({ id: `ad-${i}`, type: 'ad' });
+                }
             }
         }
-
-        // Ensure at least one ad is shown if there are any listings but fewer than 5
-        const adWasAdded = itemsWithAds.some(item => item.type === 'ad');
-        if (!adWasAdded && paginatedBoards.length > 0) {
-            const insertPosition = 2; // Preferred position for the single ad (after the 2nd item).
-            const insertIndex = Math.min(insertPosition, itemsWithAds.length);
-            itemsWithAds.splice(insertIndex, 0, { id: 'ad-fallback', type: 'ad' });
-        }
-
         return itemsWithAds;
-    }, [paginatedBoards, view]);
+    }, [paginatedBoards, view, activeAds, adRotationOffset, appSettings.adsenseCode]);
 
     const sellerFilter = useMemo(() => {
         if (!filters.sellerId) return null;
@@ -1541,28 +1607,36 @@ const App: React.FC = () => {
             <Header
                 branding={branding}
                 currentUser={currentUser}
-                onListBoardClick={handleListBoardClick}
-                onLoginClick={() => {
-                    setAuthModalView('login');
-                    setIsAuthModalOpen(true);
+                onListBoardClick={() => {
+                    if (!currentUser) promptForAuth("You must be logged in to list a board.");
+                    else if (!currentUser.isVerified) setVerificationStatus('unverified'); // Or show verify modal
+                    else setIsListingFormOpen(true);
                 }}
-                onLogout={handleLogout}
-                onShowFavs={() => setView('favs')}
-                onShowMyListings={() => setView('myListings')}
-                onShowAll={() => {
-                    setView('all');
-                    setFilters(prev => ({ ...initialFilters, country: prev.country }));
-                }}
+                onLoginClick={handlePromptLogin}
+                onLogout={() => signOut(auth)}
+                onShowFavs={() => { setView('favs'); setFilters(initialFilters); navigate('/'); }}
+                onShowMyListings={() => { setView('myListings'); setFilters(initialFilters); navigate('/'); }}
+                onShowAll={() => { setView('all'); setFilters(initialFilters); navigate('/'); }}
                 onAccountSettingsClick={() => setIsAccountSettingsOpen(true)}
                 onFaqClick={() => setIsFaqOpen(true)}
                 onContactClick={() => setIsContactOpen(true)}
-
+                onAboutUsClick={() => setIsAboutUsOpen(true)}
+                onAdminClick={() => setIsAdminPageOpen(true)}
                 notifications={notifications}
-                onNotificationClick={handleNotificationClick}
-                onMarkAllNotificationsAsRead={handleMarkAllNotificationsAsRead}
-                onClearAllNotifications={handleClearAllNotifications}
-                stagedBoardsCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
-                onCartClick={() => setIsStagedCartOpen(true)}
+                onNotificationClick={(n) => {
+                    // handle click
+                    const board = boards.find(b => b.id === n.boardId);
+                    if (board) handleSelectBoard(board.id);
+                }}
+                onMarkAllNotificationsAsRead={() => {
+                    const updated = notifications.map(n => ({ ...n, isRead: true }));
+                    setNotifications(updated);
+                    if (currentUser) localStorage.setItem(`surfdims-notifications-${currentUser.id}`, JSON.stringify(updated));
+                }}
+                onClearAllNotifications={() => {
+                    setNotifications([]);
+                    if (currentUser) localStorage.setItem(`surfdims-notifications-${currentUser.id}`, JSON.stringify([]));
+                }}
             />
 
             {currentUser && !currentUser.isVerified && verificationStatus !== 'verifying' && currentUser.role !== 'admin' && (
@@ -1681,7 +1755,7 @@ const App: React.FC = () => {
                             </div>
 
                             <BoardList
-                                items={listItemsWithAds}
+                                items={listItems}
                                 users={users}
                                 favs={currentUser?.favs || []}
                                 onToggleFavs={handleToggleFavs}
@@ -1691,6 +1765,7 @@ const App: React.FC = () => {
                                 onOpenLearnMore={() => setIsLearnMoreOpen(true)}
                                 hasMore={visibleListingsCount < filteredBoards.length}
                                 onShowMore={handleShowMore}
+                                appSettings={appSettings}
                             />
                         </div>
                     </div>
@@ -1781,25 +1856,41 @@ const App: React.FC = () => {
                     onApply={handleApplyVolumeRange}
                 />
             )}
-            {currentUser && (
-                <StagedBoardsCart
-                    stagedBoards={stagedNewBoards}
-                    onRemoveBoard={handleRemoveStagedBoard}
-                    onClearAll={handleClearStagedBoards}
-                    onProceedToPayment={handleProceedToPaymentFromCart}
-                    currencySymbol={getCurrencySymbol(currentUser.country)}
-                    boardFee={getNewBoardFee(currentUser.country)}
-                    isOpen={isStagedCartOpen}
-                    onClose={() => setIsStagedCartOpen(false)}
+            {isAboutUsOpen && (
+                <AboutUsPage
+                    onClose={() => setIsAboutUsOpen(false)}
+                    onSignupClick={() => { setIsAboutUsOpen(false); promptForAuth("Signup for a free account!", false); }}
                 />
             )}
+
+            {currentUser?.role === 'admin' && isAdminPageOpen && (
+                <AdminPage
+                    boards={boards}
+                    users={users}
+                    donationEntries={donationEntries}
+                    onAdminDeleteListing={handleAdminDeleteListing}
+                    onAdminApproveListing={handleAdminApproveListing}
+                    onAdminToggleUserBlock={handleAdminToggleUserBlock}
+                    onAdminDeleteUser={handleAdminDeleteUser}
+                    branding={branding}
+                    onBrandingUpdate={handleBrandingUpdate}
+                    appSettings={appSettings}
+                    onAppSettingsUpdate={handleAppSettingsUpdate}
+                    giveawayImages={giveawayImages}
+                    onGiveawayImagesUpdate={handleGiveawayImagesUpdate}
+                    adminAds={adminAds}
+                    onAdminAdsUpdate={handleAdminAdsUpdate}
+                    onClose={() => setIsAdminPageOpen(false)}
+                />
+            )}
+
 
             <AuthModal
                 isOpen={isAuthModalOpen}
                 onClose={() => setIsAuthModalOpen(false)}
                 initialView={authModalView}
             />
-        </div>
+        </div >
     );
 };
 

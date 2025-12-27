@@ -1,16 +1,17 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Surfboard, User, BrandingState, AppSettingsState, DonationEntry } from '../types';
+import { Surfboard, User, BrandingState, AppSettingsState, DonationEntry, AdminAd } from '../types';
 import { DEFAULT_BRANDING } from '../constants';
 import { COUNTRIES } from '../countries';
 import XIcon from './icons/XIcon';
 import TrashIcon from './icons/TrashIcon';
-import CheckCircleIcon from './icons/CheckCircleIcon';
 import AppIntegrations from './AppIntegrations';
 import GiveawaysManager from './GiveawaysManager';
 import EntriesManager from './EntriesManager';
 import TicketIcon from './icons/TicketIcon';
 import SearchIcon from './icons/SearchIcon';
 import DownloadIcon from './icons/DownloadIcon';
+import AdsManager from './AdsManager';
+import CheckCircleIcon from './icons/CheckCircleIcon';
 
 interface AdminPageProps {
     boards: Surfboard[];
@@ -19,6 +20,7 @@ interface AdminPageProps {
     branding: BrandingState;
     appSettings: AppSettingsState;
     giveawayImages: string[];
+    adminAds: AdminAd[];
     onAdminDeleteListing: (boardId: string) => void;
     onAdminApproveListing: (boardId: string) => void;
     onAdminToggleUserBlock: (userId: string) => void;
@@ -26,7 +28,8 @@ interface AdminPageProps {
     onBrandingUpdate: (newBranding: BrandingState) => void;
     onAppSettingsUpdate: (newSettings: AppSettingsState) => void;
     onGiveawayImagesUpdate: (images: string[]) => void;
-
+    onAdminAdsUpdate: (ads: AdminAd[]) => void;
+    onClose: () => void;
 }
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -112,10 +115,13 @@ const BrandingManager: React.FC<{
     );
 };
 
-const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListing, onAdminApproveListing, onAdminToggleUserBlock, onAdminDeleteUser, branding, onBrandingUpdate, appSettings, onAppSettingsUpdate, giveawayImages, onGiveawayImagesUpdate, donationEntries }) => {
-    const [activeTab, setActiveTab] = useState<'listings' | 'users' | 'branding' | 'apps' | 'giveaways' | 'entries'>('listings');
+const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListing, onAdminApproveListing, onAdminToggleUserBlock, onAdminDeleteUser, onClose, branding, onBrandingUpdate, appSettings, onAppSettingsUpdate, giveawayImages, onGiveawayImagesUpdate, donationEntries, adminAds, onAdminAdsUpdate }) => {
+    const [activeTab, setActiveTab] = useState<'listings' | 'users' | 'branding' | 'apps' | 'giveaways' | 'entries' | 'ads'>('listings');
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [listingSearchTerm, setListingSearchTerm] = useState('');
+
+    const [visibleListingsCount, setVisibleListingsCount] = useState(20);
+    const [visibleUsersCount, setVisibleUsersCount] = useState(20);
 
     const sellerMap: Map<string, User> = useMemo(() => new Map<string, User>(users.map(u => [u.id, u])), [users]);
 
@@ -129,6 +135,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
             user.email.toLowerCase().includes(lowercasedFilter)
         );
     }, [users, userSearchTerm]);
+
+    const paginatedUsers = useMemo(() => filteredUsers.slice(0, visibleUsersCount), [filteredUsers, visibleUsersCount]);
 
     const filteredBoards = useMemo(() => {
         if (!listingSearchTerm.trim()) {
@@ -146,6 +154,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
             return searchString.includes(lowercasedFilter);
         });
     }, [boards, listingSearchTerm, sellerMap]);
+
+    const paginatedBoards = useMemo(() => filteredBoards.slice(0, visibleListingsCount), [filteredBoards, visibleListingsCount]);
 
     const handleDownloadUsersCSV = useCallback(() => {
         const sortedUsers = [...users].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -198,8 +208,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
         <button
             onClick={() => setActiveTab(tabName)}
             className={`whitespace-nowrap py-3 px-4 font-medium text-sm transition-colors rounded-t-lg ${activeTab === tabName
-                ? 'bg-white border-b-0 text-blue-600'
-                : 'bg-gray-100 text-gray-500 hover:text-gray-700'
+                    ? 'bg-white border-b-0 text-blue-600'
+                    : 'bg-gray-100 text-gray-500 hover:text-gray-700'
                 }`}
         >
             {children}
@@ -207,15 +217,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
     );
 
     return (
-        <div className="container mx-auto p-4 lg:p-6 pb-20">
-            <div className="bg-white rounded-lg shadow-xl p-8 w-full animate-fade-in-down">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start py-10 overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-6xl relative animate-fade-in-down">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition">
+                    <XIcon />
+                </button>
                 <h2 className="text-3xl font-bold text-gray-800 mb-6">Admin Panel</h2>
 
                 <div className="border-b border-gray-200">
                     <nav className="-mb-px flex space-x-2 overflow-x-auto" aria-label="Tabs">
                         <TabButton tabName="listings">Manage Listings ({boards.length})</TabButton>
                         <TabButton tabName="users">Manage Users ({users.length})</TabButton>
-                        <TabButton tabName="entries">Entries ({donationEntries.length})</TabButton>
+                        <TabButton tabName="entries">Donations ({donationEntries.length})</TabButton>
+                        <TabButton tabName="ads">Ads</TabButton>
                         <TabButton tabName="branding">Branding</TabButton>
                         <TabButton tabName="giveaways">Giveaways</TabButton>
                         <TabButton tabName="apps">Apps</TabButton>
@@ -230,7 +244,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                                     type="text"
                                     placeholder="Search by brand, model, seller name or email..."
                                     value={listingSearchTerm}
-                                    onChange={(e) => setListingSearchTerm(e.target.value)}
+                                    onChange={(e) => {
+                                        setListingSearchTerm(e.target.value);
+                                        setVisibleListingsCount(20);
+                                    }}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -238,35 +255,55 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                                 </div>
                             </div>
                             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                                {filteredBoards.length > 0 ? filteredBoards.map(board => {
-                                    const seller = sellerMap.get(board.sellerId);
-                                    const imageUrl = board.images && board.images.length > 0
-                                        ? board.images[0]
-                                        : `https://placehold.co/200x160/f0f4f8/25425c?text=${encodeURIComponent(board.brand || 'No Image')}`;
-                                    return (
-                                        <div key={board.id} className="bg-white p-3 rounded-lg shadow-sm border flex items-center gap-4">
-                                            <img src={imageUrl} alt="Board" className="w-20 h-16 object-cover rounded" />
-                                            <div className="flex-grow">
-                                                <p className="font-bold text-gray-800">{board.brand} {board.model}</p>
-                                                <p className="text-sm text-gray-500">
-                                                    Listed by: <span className="font-medium text-gray-600">{seller?.name || 'Unknown'}</span> ({seller?.email})
-                                                </p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-xs text-gray-500">Status</p>
-                                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${board.status === 'Live' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{board.status}</span>
-                                            </div>
-                                            {board.status === 'PendingVerification' && (
-                                                <button onClick={() => onAdminApproveListing(board.id)} className="p-2 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-full" aria-label="Approve listing" title="Approve Listing">
-                                                    <CheckCircleIcon />
+                                {paginatedBoards.length > 0 ? (
+                                    <>
+                                        {paginatedBoards.map(board => {
+                                            const seller = sellerMap.get(board.sellerId);
+                                            const imageUrl = board.images && board.images.length > 0
+                                                ? board.images[0]
+                                                : `https://placehold.co/200x160/f0f4f8/25425c?text=${encodeURIComponent(board.brand || 'No Image')}`;
+                                            return (
+                                                <div key={board.id} className="bg-white p-3 rounded-lg shadow-sm border flex items-center gap-4">
+                                                    <img src={imageUrl} alt="Board" className="w-20 h-16 object-cover rounded" />
+                                                    <div className="flex-grow">
+                                                        <p className="font-bold text-gray-800">{board.brand} {board.model}</p>
+                                                        <p className="text-sm text-gray-500">
+                                                            Listed by: <span className="font-medium text-gray-600">{seller?.name || 'Unknown'}</span> ({seller?.email})
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-xs text-gray-500">Status</p>
+                                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${board.status === 'Live' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{board.status}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {board.status === 'pending_verification' && (
+                                                            <button
+                                                                onClick={() => onAdminApproveListing(board.id)}
+                                                                className="p-2 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-full"
+                                                                title="Approve Listing"
+                                                            >
+                                                                <CheckCircleIcon />
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => onAdminDeleteListing(board.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full" aria-label="Delete listing">
+                                                            <TrashIcon />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                        {visibleListingsCount < filteredBoards.length && (
+                                            <div className="pt-4 pb-2 text-center">
+                                                <button
+                                                    onClick={() => setVisibleListingsCount(prev => prev + 20)}
+                                                    className="py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition"
+                                                >
+                                                    Show More
                                                 </button>
-                                            )}
-                                            <button onClick={() => onAdminDeleteListing(board.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full" aria-label="Delete listing">
-                                                <TrashIcon />
-                                            </button>
-                                        </div>
-                                    )
-                                }) : (
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
                                     <div className="text-center py-10">
                                         <p className="text-gray-500">No listings found.</p>
                                     </div>
@@ -282,7 +319,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                                         type="text"
                                         placeholder="Search by name or email..."
                                         value={userSearchTerm}
-                                        onChange={(e) => setUserSearchTerm(e.target.value)}
+                                        onChange={(e) => {
+                                            setUserSearchTerm(e.target.value);
+                                            setVisibleUsersCount(20);
+                                        }}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -298,30 +338,48 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                                 </button>
                             </div>
                             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                                {filteredUsers.length > 0 ? filteredUsers.map(user => (
-                                    <div key={user.id} className="bg-white p-3 rounded-lg shadow-sm border flex items-center gap-4">
-                                        <img src={user.avatar} alt="User" className="w-12 h-12 object-cover rounded-full" />
-                                        <div className="flex-grow">
-                                            <p className="font-bold text-gray-800">{user.name}</p>
-                                            <p className="text-sm text-gray-500">{user.email}</p>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <button
-                                                onClick={() => onAdminToggleUserBlock(user.id)}
-                                                className={`w-24 text-sm font-semibold py-1 px-3 rounded-md ${user.isBlocked ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`}
-                                            >
-                                                {user.isBlocked ? 'Unblock' : 'Block'}
-                                            </button>
-                                            <button
-                                                onClick={() => onAdminDeleteUser(user.id)}
-                                                className="p-2 bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-800 rounded-md transition"
-                                                title="Delete User Permanently"
-                                            >
-                                                <TrashIcon />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )) : (
+                                {paginatedUsers.length > 0 ? (
+                                    <>
+                                        {paginatedUsers.map(user => (
+                                            <div key={user.id} className="bg-white p-3 rounded-lg shadow-sm border flex items-center gap-4">
+                                                <img src={user.avatar} alt="User" className="w-12 h-12 object-cover rounded-full" />
+                                                <div className="flex-grow">
+                                                    <p className="font-bold text-gray-800">{user.name}</p>
+                                                    <p className="text-sm text-gray-500">{user.email}</p>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <button
+                                                        onClick={() => onAdminToggleUserBlock(user.id)}
+                                                        className={`w-24 text-sm font-semibold py-1 px-3 rounded-md ${user.isBlocked ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                                                    >
+                                                        {user.isBlocked ? 'Unblock' : 'Block'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (window.confirm('Are you sure you want to permanently delete this user and all their listings?')) {
+                                                                onAdminDeleteUser(user.id);
+                                                            }
+                                                        }}
+                                                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full"
+                                                        title="Delete User"
+                                                    >
+                                                        <TrashIcon />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {visibleUsersCount < filteredUsers.length && (
+                                            <div className="pt-4 pb-2 text-center">
+                                                <button
+                                                    onClick={() => setVisibleUsersCount(prev => prev + 20)}
+                                                    className="py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition"
+                                                >
+                                                    Show More
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
                                     <div className="text-center py-10">
                                         <p className="text-gray-500">No users found.</p>
                                     </div>
@@ -331,6 +389,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
                     )}
                     {activeTab === 'entries' && (
                         <EntriesManager entries={donationEntries} users={users} />
+                    )}
+                    {activeTab === 'ads' && (
+                        <AdsManager ads={adminAds} onUpdate={onAdminAdsUpdate} />
                     )}
                     {activeTab === 'branding' && (
                         <BrandingManager

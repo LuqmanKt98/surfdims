@@ -137,15 +137,18 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                     </div>
                     {board.images.length > 1 && (
                         <div className="flex gap-2 mt-3 overflow-x-auto">
-                            {board.images.map((img, index) => (
-                                <img
-                                    key={index}
-                                    src={img}
-                                    alt={`thumbnail ${index + 1}`}
-                                    className={`w-20 h-20 object-cover rounded-md cursor-pointer transition-all duration-200 ${mainImage === img ? 'ring-4 ring-blue-500' : 'opacity-70 hover:opacity-100'}`}
-                                    onClick={() => setMainImage(img)}
-                                />
-                            ))}
+                            {board.images.map((img, index) => {
+                                const thumbSrc = (board.thumbnails && board.thumbnails[index]) ? board.thumbnails[index] : img;
+                                return (
+                                    <img
+                                        key={index}
+                                        src={thumbSrc}
+                                        alt={`thumbnail ${index + 1}`}
+                                        className={`w-20 h-20 object-cover rounded-md cursor-pointer transition-all duration-200 ${mainImage === img ? 'ring-4 ring-blue-500' : 'opacity-70 hover:opacity-100'}`}
+                                        onClick={() => setMainImage(img)}
+                                    />
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -237,7 +240,7 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
             {isSeller && (
                 <div className="mt-10 border-t pt-8">
                     <h3 className="text-2xl font-bold text-gray-800 mb-4">Manage Listing</h3>
-                    <div className="bg-gray-50 p-6 rounded-lg">
+                    <div className="bg-[#b8e3f6] p-6 rounded-lg">
                         {board.status === SurfboardStatus.Live && (
                             <div className="space-y-8">
                                 <div>
@@ -250,10 +253,16 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                                     {board.condition === Condition.New ? (
                                         <p className="text-gray-600 mb-4">New listings are active for 1 year. No renewal needed until expiry.</p>
                                     ) : (
-                                        <p className="text-gray-600 mb-4">Used listings are active for 3 months.</p>
+                                        <>
+                                            <p className="text-gray-600 mb-4">Used listings active for 3 months. Extend anytime for free.</p>
+                                            <button onClick={() => onRenewListing(board.id)} className="w-full sm:w-auto flex items-center justify-center gap-2 py-2 px-6 font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 text-white transition-colors">
+                                                <RefreshIcon />
+                                                Extend Listing
+                                            </button>
+                                        </>
                                     )}
                                 </div>
-                                <div className="pt-8 border-t border-gray-200">
+                                <div className="pt-8 border-t border-gray-400 border-opacity-30">
                                     <p className="text-gray-600 mb-4">Is the board sold? Mark it as sold to remove it from public listings. You have 30 days to renew should the sale fall through.</p>
                                     <button onClick={() => onMarkAsSold(board.id)} className="w-full sm:w-auto flex items-center justify-center gap-2 py-2 px-6 font-semibold rounded-lg shadow-md bg-gray-600 hover:bg-gray-700 text-white transition-colors">
                                         <CheckCircleIcon />
@@ -276,6 +285,16 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                                         {board.condition === Condition.New ? 'Reactivate (Payment Required)' : 'Renew Listing'}
                                     </button>
                                 </div>
+                                <div className="pt-4 mt-4 border-t border-gray-400 border-opacity-30">
+                                    <p className="text-sm text-gray-600 mb-2">Or, permanently remove this listing.</p>
+                                    <button
+                                        onClick={handleDelete}
+                                        className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                                    >
+                                        <TrashIcon />
+                                        Delete listing
+                                    </button>
+                                </div>
                             </div>
                         )}
                         {board.status === SurfboardStatus.Sold && (
@@ -287,17 +306,6 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                                 </button>
                             </div>
                         )}
-
-                        <div className="pt-8 mt-8 border-t border-gray-200">
-                            <p className="text-sm text-gray-600 mb-4">Permanently remove this listing from SurfDims.</p>
-                            <button
-                                onClick={handleDelete}
-                                className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-200"
-                            >
-                                <TrashIcon />
-                                Delete listing
-                            </button>
-                        </div>
                     </div>
                     {board.status === SurfboardStatus.Expired && (
                         <p className="text-xs text-gray-500 text-center mt-4">
@@ -333,16 +341,14 @@ const ListingDetail: React.FC<ListingDetailProps> = ({ board, seller, currentUse
                 </div>
             </div>
 
-            {
-                isViewerOpen && hasImages && (
-                    <FullscreenImageViewer
-                        images={board.images}
-                        startIndex={viewerStartIndex}
-                        onClose={() => setIsViewerOpen(false)}
-                    />
-                )
-            }
-        </div >
+            {isViewerOpen && hasImages && (
+                <FullscreenImageViewer
+                    images={board.images}
+                    startIndex={viewerStartIndex}
+                    onClose={() => setIsViewerOpen(false)}
+                />
+            )}
+        </div>
     );
 };
 

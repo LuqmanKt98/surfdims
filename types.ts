@@ -50,8 +50,8 @@ export interface Surfboard {
     description: string;
     images: string[];
     listedDate: string;
-    expiresAt: string;
-    isPaid: boolean;
+    expiresAt?: string;
+    isPaid?: boolean;
     status: SurfboardStatus;
     website?: string;
     // Backend Schema Compliance
@@ -61,6 +61,7 @@ export interface Surfboard {
     createdAt?: any; // ServerTimestamp
     inactiveAt?: string | null;
     storagePath?: string;
+    thumbnails?: string[];  // Optimized WebP thumbnails
     paymentIntentId?: string;
     paymentVerified?: boolean;
 }
@@ -70,6 +71,7 @@ export interface FilterState {
     country: string;
     finSystem: FinSystem | 'All';
     finSetup: FinSetup | 'All';
+    condition: Condition | 'All';
     minLength: number;
     maxLength: number;
     minWidth: number;
@@ -103,9 +105,18 @@ export interface User {
     createdAt: string;
 }
 
+export interface AdminAd {
+    id: string;
+    name: string;
+    imageUrl: string;
+    linkUrl: string;
+    isActive: boolean;
+}
+
 export interface Advertisement {
     id: string;
     type: 'ad';
+    adData?: AdminAd;
 }
 
 export type ListItem = Surfboard | Advertisement;
@@ -129,6 +140,8 @@ export interface AppNotification {
 
 export interface AppSettingsState {
     mailchimpApiKey: string;
+    adsenseCode: string;
+    contactEmail: string;
 }
 
 export interface DonationEntry {

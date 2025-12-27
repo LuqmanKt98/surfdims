@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ListItem, User, Surfboard, Advertisement } from '../types';
+import { ListItem, User, Surfboard, Advertisement, AppSettingsState } from '../types';
 import BoardCard from './BoardCard';
 import AdCard from './AdCard';
 
@@ -14,11 +14,12 @@ interface BoardListProps {
     onOpenLearnMore: () => void;
     hasMore: boolean;
     onShowMore: () => void;
+    appSettings: AppSettingsState;
 }
 
-const BoardList: React.FC<BoardListProps> = ({ items, users, favs, onToggleFavs, onSelectBoard, currentUser, onShare, hasMore, onShowMore }) => {
+const BoardList: React.FC<BoardListProps> = ({ items, users, favs, onToggleFavs, onSelectBoard, currentUser, onShare, hasMore, onShowMore, appSettings }) => {
     const sellerMap = useMemo(() => new Map<string, User>(users.map(user => [user.id, user])), [users]);
-    
+
     const hasBoards = useMemo(() => items.some(item => item.type === 'board'), [items]);
 
     if (!hasBoards) {
@@ -37,31 +38,31 @@ const BoardList: React.FC<BoardListProps> = ({ items, users, favs, onToggleFavs,
             return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                     {items.map(item => (
-                        <AdCard key={item.id} ad={item as Advertisement} />
+                        <AdCard key={item.id} ad={item as Advertisement} appSettings={appSettings} />
                     ))}
                 </div>
             );
         }
     }
-    
+
     // Case 3: There is at least one board, potentially mixed with ads.
     return (
         <>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {items.map(item => {
                     if (item.type === 'ad') {
-                        return <AdCard key={item.id} ad={item} />;
+                        return <AdCard key={item.id} ad={item} appSettings={appSettings} />;
                     }
-                    
+
                     // It's a board
                     const board = item;
                     const seller = sellerMap.get(board.sellerId);
                     if (!seller) return null; // Should not happen in a consistent dataset
-                    
+
                     return (
-                        <BoardCard 
-                            key={board.id} 
-                            board={board} 
+                        <BoardCard
+                            key={board.id}
+                            board={board}
                             seller={seller}
                             isFavourited={favs.includes(board.id)}
                             onToggleFavs={onToggleFavs}

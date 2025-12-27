@@ -66,9 +66,11 @@ const BoardCard: React.FC<BoardCardProps> = ({ board, seller, isFavourited, onTo
     const isOwner = currentUser?.id === board.sellerId;
     const isClickable = board.status === SurfboardStatus.Live || isOwner;
 
-    const imageUrl = board.images && board.images.length > 0
-        ? board.images[0]
-        : `https://placehold.co/800x600/f0f4f8/25425c?text=${encodeURIComponent([board.brand, board.model].filter(Boolean).join(' ') || 'Surfboard')}`;
+    const imageUrl = (board.thumbnails && board.thumbnails.length > 0)
+        ? board.thumbnails[0]
+        : (board.images && board.images.length > 0
+            ? board.images[0]
+            : `https://placehold.co/800x600/f0f4f8/25425c?text=${encodeURIComponent([board.brand, board.model].filter(Boolean).join(' ') || 'Surfboard')}`);
 
     return (
         <div

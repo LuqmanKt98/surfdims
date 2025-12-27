@@ -323,6 +323,22 @@ const App: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
+    // Fetch Branding from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(doc(db, "branding", "settings"), (doc) => {
+            if (doc.exists()) {
+                const brandingData = doc.data() as BrandingState;
+                setBranding(brandingData);
+                try {
+                    localStorage.setItem('surfDimsBranding', JSON.stringify(brandingData));
+                } catch (e) {
+                    console.error("Failed to sync branding to localStorage", e);
+                }
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
     // Ad Rotation timer
     useEffect(() => {
         const interval = setInterval(() => {
@@ -630,14 +646,15 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const handleBrandingUpdate = useCallback((newBranding: BrandingState) => {
+    const handleBrandingUpdate = useCallback(async (newBranding: BrandingState) => {
+        // Optimistic update
         setBranding(newBranding);
         try {
+            await setDoc(doc(db, "branding", "settings"), newBranding);
             localStorage.setItem('surfDimsBranding', JSON.stringify(newBranding));
-            alert('Branding updated successfully!');
         } catch (e) {
-            console.error("Failed to save branding to localStorage", e);
-            alert('Branding updated in session, but failed to save to storage.');
+            console.error("Failed to save branding to Firestore", e);
+            alert('Failed to save branding settings.');
         }
     }, []);
 

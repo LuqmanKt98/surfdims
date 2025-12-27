@@ -11,6 +11,8 @@ import TicketIcon from './icons/TicketIcon';
 import SearchIcon from './icons/SearchIcon';
 import DownloadIcon from './icons/DownloadIcon';
 import AdsManager from './AdsManager';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 import CheckCircleIcon from './icons/CheckCircleIcon';
 
 interface AdminPageProps {
@@ -46,31 +48,79 @@ const BrandingManager: React.FC<{
     onUpdateBranding: (newBranding: BrandingState) => void,
 }> = ({ currentBranding, onUpdateBranding }) => {
     const [branding, setBranding] = useState(currentBranding);
+    const [desktopFile, setDesktopFile] = useState<File | null>(null);
+    const [mobileFile, setMobileFile] = useState<File | null>(null);
+    const [desktopPreview, setDesktopPreview] = useState<string | null>(null);
+    const [mobilePreview, setMobilePreview] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'desktop' | 'mobile') => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'desktop' | 'mobile') => {
         if (e.target.files && e.target.files[0]) {
-            try {
-                const file = e.target.files[0];
-                const base64 = await fileToBase64(file as File);
-                setBranding(prev => ({
-                    ...prev,
-                    [type === 'desktop' ? 'desktopLogo' : 'mobileLogo']: base64
-                }));
-            } catch (error) {
-                console.error("Error processing branding image:", error);
-                alert("There was an error uploading the image. Please try again.");
+            const file = e.target.files[0];
+            const previewUrl = URL.createObjectURL(file);
+
+            if (type === 'desktop') {
+                setDesktopFile(file);
+                setDesktopPreview(previewUrl);
+                // Update local visual state immediately for better UX, though it's not saved yet
+                setBranding(prev => ({ ...prev, desktopLogo: previewUrl }));
+            } else {
+                setMobileFile(file);
+                setMobilePreview(previewUrl);
+                setBranding(prev => ({ ...prev, mobileLogo: previewUrl }));
             }
         }
     };
 
-    const handleSaveChanges = () => {
-        onUpdateBranding(branding);
+    const handleSaveChanges = async () => {
+        setIsLoading(true);
+        try {
+            let newDesktopUrl = branding.desktopLogo;
+            let newMobileUrl = branding.mobileLogo;
+
+            // Upload Desktop Logo if changed
+            if (desktopFile) {
+                const desktopRef = ref(storage, `branding/desktop_logo_${Date.now()}`); // Timestamp to avoid caching issues
+                const snapshot = await uploadBytes(desktopRef, desktopFile);
+                newDesktopUrl = await getDownloadURL(snapshot.ref);
+            }
+
+            // Upload Mobile Logo if changed
+            if (mobileFile) {
+                const mobileRef = ref(storage, `branding/mobile_logo_${Date.now()}`);
+                const snapshot = await uploadBytes(mobileRef, mobileFile);
+                newMobileUrl = await getDownloadURL(snapshot.ref);
+            }
+
+            const updatedBranding = {
+                ...branding,
+                desktopLogo: newDesktopUrl,
+                mobileLogo: newMobileUrl
+            };
+
+            setBranding(updatedBranding); // Update local state with final URLs
+            onUpdateBranding(updatedBranding); // Update parent/Firestore
+
+            // Clear pending files
+            setDesktopFile(null);
+            setMobileFile(null);
+            alert('Branding updated successfully!');
+        } catch (error) {
+            console.error("Error uploading branding images:", error);
+            alert("Failed to update branding. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleReset = () => {
         if (window.confirm('Are you sure you want to reset the branding to the default?')) {
             setBranding(DEFAULT_BRANDING);
             onUpdateBranding(DEFAULT_BRANDING);
+            setDesktopFile(null);
+            setMobileFile(null);
+            setDesktopPreview(null);
+            setMobilePreview(null);
         }
     };
 
@@ -82,32 +132,54 @@ const BrandingManager: React.FC<{
                 <div>
                     <h4 className="font-semibold text-gray-800 mb-2">Desktop Logo</h4>
                     <p className="text-sm text-gray-500 mb-3">Recommended: SVG or transparent PNG.</p>
-                    <input type="file" accept="image/svg+xml, image/png, image/jpeg" onChange={(e) => handleImageUpload(e, 'desktop')} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4" />
+                    <input
+                        type="file"
+                        accept="image/svg+xml, image/png, image/jpeg"
+                        onChange={(e) => handleFileChange(e, 'desktop')}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4"
+                    />
                     <div className="p-4 border rounded-lg bg-white">
                         <p className="text-xs text-gray-500 mb-2">Preview:</p>
-                        <div className="bg-[#25425c] p-4 rounded-md">
-                            <img src={branding.desktopLogo} alt="Desktop logo preview" className="h-10" />
+                        <div className="bg-[#25425c] p-4 rounded-md flex justify-center">
+                            <img src={branding.desktopLogo} alt="Desktop logo preview" className="h-16 object-contain" />
                         </div>
                     </div>
                 </div>
                 {/* Mobile Logo */}
                 <div>
                     <h4 className="font-semibold text-gray-800 mb-2">Mobile Logo (Optional)</h4>
-                    <p className="text-sm text-gray-500 mb-3">A compact version for small screens. If not provided, a default will be used.</p>
-                    <input type="file" accept="image/svg+xml, image/png, image/jpeg" onChange={(e) => handleImageUpload(e, 'mobile')} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4" />
+                    <p className="text-sm text-gray-500 mb-3">A compact version for small screens.</p>
+                    <input
+                        type="file"
+                        accept="image/svg+xml, image/png, image/jpeg"
+                        onChange={(e) => handleFileChange(e, 'mobile')}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4"
+                    />
                     <div className="p-4 border rounded-lg bg-white">
                         <p className="text-xs text-gray-500 mb-2">Preview:</p>
-                        <div className="bg-[#25425c] p-4 rounded-md">
-                            {branding.mobileLogo ? <img src={branding.mobileLogo} alt="Mobile logo preview" className="h-10" /> : <p className="text-sm text-gray-400">No mobile logo set.</p>}
+                        <div className="bg-[#25425c] p-4 rounded-md flex justify-center">
+                            {branding.mobileLogo ? (
+                                <img src={branding.mobileLogo} alt="Mobile logo preview" className="h-10 object-contain" />
+                            ) : (
+                                <p className="text-sm text-gray-400">No mobile logo set.</p>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
             <div className="mt-8 flex gap-4">
-                <button onClick={handleSaveChanges} className="py-2 px-6 font-semibold rounded-lg shadow-md bg-blue-600 hover:bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
-                    Save Changes
+                <button
+                    onClick={handleSaveChanges}
+                    disabled={isLoading}
+                    className={`py-2 px-6 font-semibold rounded-lg shadow-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition ${isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                    {isLoading ? 'Uploading...' : 'Save Changes'}
                 </button>
-                <button onClick={handleReset} className="py-2 px-6 font-semibold rounded-lg shadow-md bg-gray-600 hover:bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition">
+                <button
+                    onClick={handleReset}
+                    disabled={isLoading}
+                    className="py-2 px-6 font-semibold rounded-lg shadow-md bg-gray-600 hover:bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition"
+                >
                     Reset to Default
                 </button>
             </div>
@@ -208,8 +280,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ boards, users, onAdminDeleteListi
         <button
             onClick={() => setActiveTab(tabName)}
             className={`whitespace-nowrap py-3 px-4 font-medium text-sm transition-colors rounded-t-lg ${activeTab === tabName
-                    ? 'bg-white border-b-0 text-blue-600'
-                    : 'bg-gray-100 text-gray-500 hover:text-gray-700'
+                ? 'bg-white border-b-0 text-blue-600'
+                : 'bg-gray-100 text-gray-500 hover:text-gray-700'
                 }`}
         >
             {children}

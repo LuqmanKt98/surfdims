@@ -1,30 +1,40 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Allow users to read and write only their own profile document
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+
+    // Helper functions
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Boards: Public read, Owner write with validation
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Users: Public Read, Owner/Admin Write
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Boards: Public Read
     match /boards/{boardId} {
       allow read: if true;
+      
+      // Create: Strict validation (preserved from your rules)
       allow create: if request.auth != null 
                     && request.resource.data.sellerId == request.auth.uid
                     && request.resource.data.ownerId == request.auth.uid
                     && request.resource.data.lifecycleStatus == 'active'
-                    // Ensure consistency between Condition and Status/Payments
                     && (
-                      // Used Boards: Live, Used, Not Paid
                       (
                         request.resource.data.condition == 'Used'
                         && request.resource.data.status == 'Live'
                         && request.resource.data.isPaid == false
                       )
                       ||
-                      // New Boards: Pending Verification, New, Not Paid (initially)
                       (
                         request.resource.data.condition == 'New'
                         && request.resource.data.status == 'PendingVerification'
@@ -32,46 +42,69 @@ service cloud.firestore {
                       )
                     );
 
-      allow update: if request.auth != null 
-                    && resource.data.sellerId == request.auth.uid
-                    // 1. Critical Immutable Fields: Seller, Condition, IsPaid + New Schema Fields
-                    && request.resource.data.sellerId == resource.data.sellerId
-                    && request.resource.data.condition == resource.data.condition
-                    && request.resource.data.isPaid == resource.data.isPaid
-                    && request.resource.data.ownerId == resource.data.ownerId
-                    && request.resource.data.listingType == resource.data.listingType
-                    && request.resource.data.createdAt == resource.data.createdAt
-                    && (
-                        // Scenario A: Normal Edit (Status Unchanged)
-                        (
-                           request.resource.data.status == resource.data.status
-                           // Prevent tampering with dates during normal edit
-                           && request.resource.data.expiresAt == resource.data.expiresAt
-                           && request.resource.data.listedDate == resource.data.listedDate
-                           && request.resource.data.lifecycleStatus == resource.data.lifecycleStatus
-                        )
-                        ||
-                        // Scenario B: Renewal / Reactivation (Status changes to Live)
-                        (
-                           request.resource.data.status == 'Live'
-                           && resource.data.status != 'Live'
-                           && request.resource.data.lifecycleStatus == 'active'
-                           // Allow date updates for renewal, logic handled by client but we permit the change here
-                        )
-                        ||
-                        // Scenario C: Deactivation / Sold (Status changes from Live)
-                        (
-                           (request.resource.data.status == 'Sold' || request.resource.data.status == 'Expired')
-                           && resource.data.status == 'Live'
-                           && request.resource.data.lifecycleStatus == 'inactive'
-                           && request.resource.data.inactiveAt != null
-                        )
-                    );
+      // Update: Admin OR Strict Owner validation
+      allow update: if request.auth != null && (
+        isAdmin() || 
+        (
+            resource.data.sellerId == request.auth.uid
+            && request.resource.data.sellerId == resource.data.sellerId
+            && request.resource.data.condition == resource.data.condition
+            && request.resource.data.isPaid == resource.data.isPaid
+            && request.resource.data.ownerId == resource.data.ownerId
+            && request.resource.data.listingType == resource.data.listingType
+            && request.resource.data.createdAt == resource.data.createdAt
+            && (
+                // Scenario A: Normal Edit (Status Unchanged)
+                (
+                   request.resource.data.status == resource.data.status
+                   && request.resource.data.expiresAt == resource.data.expiresAt
+                   && request.resource.data.listedDate == resource.data.listedDate
+                   && request.resource.data.lifecycleStatus == resource.data.lifecycleStatus
+                )
+                ||
+                // Scenario B: Renewal / Reactivation
+                (
+                   request.resource.data.status == 'Live'
+                   && resource.data.status != 'Live'
+                   && request.resource.data.lifecycleStatus == 'active'
+                )
+                ||
+                // Scenario C: Deactivation / Sold
+                (
+                   (request.resource.data.status == 'Sold' || request.resource.data.status == 'Expired')
+                   && resource.data.status == 'Live'
+                   && request.resource.data.lifecycleStatus == 'inactive'
+                   && request.resource.data.inactiveAt != null
+                )
+            )
+        )
+      );
                     
-      allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || isAdmin());
     }
-    
-    // Keep other collections secure by default
+
+    // App Configuration & Admin Collections (Required for your Dashboard)
+    match /appSettings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /branding/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /donationEntries/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /giveawayImages/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Default Deny
     match /{document=**} {
       allow read, write: if false;
     }

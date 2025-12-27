@@ -1,6 +1,3 @@
-
-
-
 import { Surfboard, FinSystem, Condition, User, FinSetup, SurfboardStatus, BrandingState, DonationEntry } from './types';
 
 export const FIN_SYSTEMS_OPTIONS: FinSystem[] = [

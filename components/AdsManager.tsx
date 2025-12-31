@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AdminAd } from '../types';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 import TrashIcon from './icons/TrashIcon';
 import EditIcon from './icons/EditIcon';
 import XIcon from './icons/XIcon';
@@ -8,15 +10,6 @@ interface AdsManagerProps {
     ads: AdminAd[];
     onUpdate: (ads: AdminAd[]) => void;
 }
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
 
 const AdForm: React.FC<{
     ad?: AdminAd;
@@ -27,63 +20,133 @@ const AdForm: React.FC<{
     const [linkUrl, setLinkUrl] = useState(ad?.linkUrl || '');
     const [imageUrl, setImageUrl] = useState(ad?.imageUrl || '');
     const [isActive, setIsActive] = useState(ad?.isActive ?? true);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string>(ad?.imageUrl || '');
 
-    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            try {
-                const base64 = await fileToBase64(e.target.files[0]);
-                setImageUrl(base64);
-            } catch (err) {
-                alert("Failed to upload image.");
-            }
+            const file = e.target.files[0];
+            setSelectedFile(file);
+            // Create preview URL
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setPreviewUrl(e.target?.result as string);
+            };
+            reader.readAsDataURL(file);
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!imageUrl) {
+
+        if (!previewUrl) {
             alert("Please upload an image.");
             return;
         }
-        onSave({
-            ...(ad ? { id: ad.id } : {}),
-            name,
-            linkUrl,
-            imageUrl,
-            isActive
-        } as AdminAd);
+
+        setIsUploading(true);
+
+        try {
+            let finalImageUrl = imageUrl;
+
+            // If a new file was selected, upload it to Firebase Storage
+            if (selectedFile) {
+                const timestamp = Date.now();
+                const fileName = `ad-${timestamp}-${selectedFile.name}`;
+                const storageRef = ref(storage, `ads/${fileName}`);
+
+                await uploadBytes(storageRef, selectedFile);
+                finalImageUrl = await getDownloadURL(storageRef);
+            }
+
+            onSave({
+                ...(ad ? { id: ad.id } : {}),
+                name,
+                linkUrl,
+                imageUrl: finalImageUrl,
+                isActive
+            } as AdminAd);
+        } catch (err) {
+            console.error("Error uploading ad image:", err);
+            alert("Failed to upload image. Please try again.");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-[60] flex justify-center items-center p-4">
             <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md relative">
-                <button onClick={onCancel} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800">
+                <button onClick={onCancel} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800" disabled={isUploading}>
                     <XIcon />
                 </button>
                 <h3 className="text-2xl font-bold mb-6">{ad ? 'Edit Ad' : 'Create Ad'}</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Ad Name</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1 w-full px-3 py-2 border rounded-md" placeholder="e.g. Summer Sale Banner" />
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            required
+                            disabled={isUploading}
+                            className="mt-1 w-full px-3 py-2 border rounded-md"
+                            placeholder="e.g. Summer Sale Banner"
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Link URL</label>
-                        <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} required className="mt-1 w-full px-3 py-2 border rounded-md" placeholder="https://..." />
+                        <input
+                            type="url"
+                            value={linkUrl}
+                            onChange={e => setLinkUrl(e.target.value)}
+                            required
+                            disabled={isUploading}
+                            className="mt-1 w-full px-3 py-2 border rounded-md"
+                            placeholder="https://..."
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Image</label>
-                        <input type="file" accept="image/*" onChange={handleImageChange} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700" />
-                        {imageUrl && (
-                            <img src={imageUrl} alt="Preview" className="mt-2 w-full h-32 object-cover rounded border" />
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            disabled={isUploading}
+                            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700"
+                        />
+                        {previewUrl && (
+                            <img src={previewUrl} alt="Preview" className="mt-2 w-full h-32 object-cover rounded border" />
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" id="isActive" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="h-4 w-4 text-blue-600 rounded" />
+                        <input
+                            type="checkbox"
+                            id="isActive"
+                            checked={isActive}
+                            onChange={e => setIsActive(e.target.checked)}
+                            disabled={isUploading}
+                            className="h-4 w-4 text-blue-600 rounded"
+                        />
                         <label htmlFor="isActive" className="text-sm font-medium text-gray-700">Active</label>
                     </div>
                     <div className="flex gap-4 pt-4">
-                        <button type="submit" className="flex-1 py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Save Ad</button>
-                        <button type="button" onClick={onCancel} className="flex-1 py-2 px-4 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300">Cancel</button>
+                        <button
+                            type="submit"
+                            disabled={isUploading}
+                            className="flex-1 py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                        >
+                            {isUploading ? 'Uploading...' : 'Save Ad'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            disabled={isUploading}
+                            className="flex-1 py-2 px-4 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                            Cancel
+                        </button>
                     </div>
                 </form>
             </div>

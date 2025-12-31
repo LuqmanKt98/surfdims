@@ -1420,14 +1420,24 @@ const App: React.FC = () => {
                     const adData = activeAds[adIndex % activeAds.length];
                     itemsWithAds.push({ id: `ad-${i}`, type: 'ad', adData });
                     adIndex++;
-                } else if (appSettings.adsenseCode) {
-                    // Fallback to generic ad placeholder if needed, or just standard ad
+                } else {
+                    // Always add placeholder even if no active ads (for adsenseCode fallback)
                     itemsWithAds.push({ id: `ad-${i}`, type: 'ad' });
                 }
             }
         }
+
+        // Fallback: If no ad was added in the loop but we have active ads, insert one at position 2
+        const adWasAdded = itemsWithAds.some(item => item.type === 'ad');
+        if (!adWasAdded && paginatedBoards.length > 0 && activeAds.length > 0) {
+            const insertPosition = 2;
+            const insertIndex = Math.min(insertPosition, itemsWithAds.length);
+            itemsWithAds.splice(insertIndex, 0, { id: 'ad-initial', type: 'ad', adData: activeAds[adRotationOffset % activeAds.length] });
+        }
+
         return itemsWithAds;
-    }, [paginatedBoards, view, activeAds, adRotationOffset, appSettings.adsenseCode]);
+    }, [paginatedBoards, view, activeAds, adRotationOffset]);
+
 
     const sellerFilter = useMemo(() => {
         if (!filters.sellerId) return null;

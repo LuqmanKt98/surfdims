@@ -339,6 +339,55 @@ const App: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
+    // Sync Cart with Firebase
+    useEffect(() => {
+        if (!currentUser) {
+            setStagedNewBoards([]);
+            setStagedLocation(null);
+            return;
+        }
+
+        const cartDocRef = doc(db, "carts", currentUser.id);
+        const unsubscribe = onSnapshot(cartDocRef, (docSnapshot) => {
+            if (docSnapshot.exists()) {
+                const cartData = docSnapshot.data();
+                if (cartData.items && Array.isArray(cartData.items)) {
+                    setStagedNewBoards(cartData.items);
+                }
+                if (cartData.location) {
+                    setStagedLocation(cartData.location);
+                }
+            } else {
+                // No cart in Firebase yet - try migrating from localStorage
+                try {
+                    const saved = localStorage.getItem(`surfdims-staged-boards-${currentUser.id}`);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            // Migrate to Firebase
+                            setDoc(cartDocRef, {
+                                items: parsed,
+                                location: stagedLocation,
+                                updatedAt: serverTimestamp()
+                            }).then(() => {
+                                console.log('Migrated cart from localStorage to Firebase');
+                                localStorage.removeItem(`surfdims-staged-boards-${currentUser.id}`);
+                            }).catch(err => {
+                                console.error('Failed to migrate cart to Firebase:', err);
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load/migrate cart from localStorage', e);
+                }
+            }
+        }, (error) => {
+            console.error('Error listening to cart:', error);
+        });
+
+        return () => unsubscribe();
+    }, [currentUser]);
+
     // Ad Rotation timer
     useEffect(() => {
         const interval = setInterval(() => {
@@ -594,12 +643,27 @@ const App: React.FC = () => {
         }
     }, [currentUser, handleSelectBoard]);
 
-    const handleStageAndReset = useCallback((newBoards: Omit<Surfboard, 'id'>[], location?: { region: string; suburb: string; }) => {
-        setStagedNewBoards(prev => [...prev, ...newBoards]);
+    const handleStageAndReset = useCallback(async (newBoards: Omit<Surfboard, 'id'>[], location?: { region: string; suburb: string; }) => {
+        const updatedBoards = [...stagedNewBoards, ...newBoards];
+        setStagedNewBoards(updatedBoards);
+
         if (location && !stagedLocation) {
             setStagedLocation(location);
         }
-    }, [stagedLocation]);
+
+        // Save to Firebase
+        if (currentUser) {
+            try {
+                await setDoc(doc(db, "carts", currentUser.id), {
+                    items: updatedBoards,
+                    location: location || stagedLocation,
+                    updatedAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Failed to save cart to Firebase:", error);
+            }
+        }
+    }, [stagedNewBoards, stagedLocation, currentUser]);
 
     const handleStageAndPay = useCallback((finalBoards: Omit<Surfboard, 'id'>[], location?: { region: string; suburb: string; }) => {
         const allBoardsToPay = [...stagedNewBoards, ...finalBoards];
@@ -834,6 +898,15 @@ const App: React.FC = () => {
         setStagedLocation(null);
         setStagedNewBoards([]); // Clear staged boards after successful payment
         setPaymentAmount(0);
+
+        // Clear cart from Firebase after successful payment
+        if (currentUser) {
+            try {
+                await deleteDoc(doc(db, "carts", currentUser.id));
+            } catch (error) {
+                console.error("Failed to clear cart from Firebase after payment:", error);
+            }
+        }
         setPaymentDescription('');
     };
 
@@ -916,17 +989,40 @@ const App: React.FC = () => {
         // DON'T clear staged boards - they should persist until payment or explicit clear
     };
 
-    const handleRemoveStagedBoard = useCallback((index: number) => {
-        setStagedNewBoards(prev => prev.filter((_, i) => i !== index));
-    }, []);
+    const handleRemoveStagedBoard = useCallback(async (index: number) => {
+        const updatedBoards = stagedNewBoards.filter((_, i) => i !== index);
+        setStagedNewBoards(updatedBoards);
 
-    const handleClearStagedBoards = useCallback(() => {
+        // Update Firebase
+        if (currentUser) {
+            try {
+                await setDoc(doc(db, "carts", currentUser.id), {
+                    items: updatedBoards,
+                    location: stagedLocation,
+                    updatedAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Failed to update cart in Firebase:", error);
+            }
+        }
+    }, [stagedNewBoards, stagedLocation, currentUser]);
+
+    const handleClearStagedBoards = useCallback(async () => {
         if (window.confirm('Are you sure you want to clear all staged boards?')) {
             setStagedNewBoards([]);
             setStagedLocation(null);
             setIsStagedCartOpen(false);
+
+            // Clear from Firebase
+            if (currentUser) {
+                try {
+                    await deleteDoc(doc(db, "carts", currentUser.id));
+                } catch (error) {
+                    console.error("Failed to clear cart from Firebase:", error);
+                }
+            }
         }
-    }, []);
+    }, [currentUser]);
 
     const handleProceedToPaymentFromCart = useCallback(() => {
         if (stagedNewBoards.length === 0) {
@@ -1568,15 +1664,12 @@ const App: React.FC = () => {
                         navigate('/');
                     }}
                     onAccountSettingsClick={() => setIsAccountSettingsOpen(true)}
-
-                    notifications={notifications}
-                    onNotificationClick={handleNotificationClick}
-                    onMarkAllNotificationsAsRead={handleMarkAllNotificationsAsRead}
-                    onClearAllNotifications={handleClearAllNotifications}
-                    stagedBoardsCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
                     onCartClick={() => setIsStagedCartOpen(true)}
+                    cartItemCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
                     onFaqClick={() => setIsFaqOpen(true)}
                     onContactClick={() => setIsContactOpen(true)}
+                    onAboutUsClick={() => setIsAboutUsOpen(false)}
+                    onAdminClick={() => setIsAdminPageOpen(false)}
                 />
                 <AdminPage
                     boards={boards}
@@ -1649,21 +1742,8 @@ const App: React.FC = () => {
                 onContactClick={() => setIsContactOpen(true)}
                 onAboutUsClick={() => setIsAboutUsOpen(true)}
                 onAdminClick={() => setIsAdminPageOpen(true)}
-                notifications={notifications}
-                onNotificationClick={(n) => {
-                    // handle click
-                    const board = boards.find(b => b.id === n.boardId);
-                    if (board) handleSelectBoard(board.id);
-                }}
-                onMarkAllNotificationsAsRead={() => {
-                    const updated = notifications.map(n => ({ ...n, isRead: true }));
-                    setNotifications(updated);
-                    if (currentUser) localStorage.setItem(`surfdims-notifications-${currentUser.id}`, JSON.stringify(updated));
-                }}
-                onClearAllNotifications={() => {
-                    setNotifications([]);
-                    if (currentUser) localStorage.setItem(`surfdims-notifications-${currentUser.id}`, JSON.stringify([]));
-                }}
+                onCartClick={() => setIsStagedCartOpen(true)}
+                cartItemCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
             />
 
             {currentUser && !currentUser.isVerified && verificationStatus !== 'verifying' && currentUser.role !== 'admin' && (
@@ -1911,6 +1991,18 @@ const App: React.FC = () => {
                 />
             )}
 
+            {currentUser && (
+                <StagedBoardsCart
+                    stagedBoards={stagedNewBoards}
+                    onRemoveBoard={handleRemoveStagedBoard}
+                    onClearAll={handleClearStagedBoards}
+                    onProceedToPayment={handleProceedToPaymentFromCart}
+                    currencySymbol={getCurrencySymbol(currentUser.country)}
+                    boardFee={getNewBoardFee(currentUser.country)}
+                    isOpen={isStagedCartOpen}
+                    onClose={() => setIsStagedCartOpen(false)}
+                />
+            )}
 
             <AuthModal
                 isOpen={isAuthModalOpen}

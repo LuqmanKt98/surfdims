@@ -4,8 +4,7 @@ import UserIcon from './icons/UserIcon';
 import CogIcon from './icons/CogIcon';
 import QuestionIcon from './icons/QuestionIcon';
 import AdminIcon from './icons/AdminIcon';
-import BellIcon from './icons/BellIcon';
-import NotificationsDropdown from './NotificationsDropdown';
+import CartIcon from './icons/CartIcon';
 
 interface HeaderProps {
     branding: BrandingState;
@@ -21,10 +20,8 @@ interface HeaderProps {
     onContactClick: () => void;
     onAboutUsClick: () => void;
     onAdminClick: () => void;
-    notifications: AppNotification[];
-    onNotificationClick: (notification: AppNotification) => void;
-    onMarkAllNotificationsAsRead: () => void;
-    onClearAllNotifications: () => void;
+    onCartClick: () => void;
+    cartItemCount: number;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -41,17 +38,13 @@ const Header: React.FC<HeaderProps> = ({
     onContactClick,
     onAboutUsClick,
     onAdminClick,
-    notifications,
-    onNotificationClick,
-    onMarkAllNotificationsAsRead,
-    onClearAllNotifications,
+    onCartClick,
+    cartItemCount,
 }) => {
     const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
     const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const userDropdownRef = useRef<HTMLDivElement>(null);
     const helpDropdownRef = useRef<HTMLDivElement>(null);
-    const notificationsDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -61,15 +54,10 @@ const Header: React.FC<HeaderProps> = ({
             if (helpDropdownRef.current && !helpDropdownRef.current.contains(event.target as Node)) {
                 setIsHelpDropdownOpen(false);
             }
-            if (notificationsDropdownRef.current && !notificationsDropdownRef.current.contains(event.target as Node)) {
-                setIsNotificationsOpen(false);
-            }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-    
-    const unreadCount = notifications.filter(n => !n.isRead).length;
 
     return (
         <header className="bg-[#02325a] shadow-md sticky top-0 z-20">
@@ -144,29 +132,19 @@ const Header: React.FC<HeaderProps> = ({
                         )}
                     </div>
 
-                    {/* Notifications Dropdown */}
+                    {/* Cart Icon */}
                     {currentUser && (
-                        <div className="relative" ref={notificationsDropdownRef}>
-                            <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#02325a] focus:ring-cyan-400 rounded-full">
-                                <BellIcon className="h-10 w-10 p-1.5 rounded-full text-white border-2 border-[#3e90a6]" />
-                                {unreadCount > 0 && (
-                                    <span className="absolute top-1 right-1 block h-4 w-4 transform rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center ring-2 ring-[#02325a]">
-                                        {unreadCount}
-                                    </span>
-                                )}
-                            </button>
-                            {isNotificationsOpen && (
-                                <NotificationsDropdown
-                                    notifications={notifications}
-                                    onNotificationClick={(notification) => {
-                                        onNotificationClick(notification);
-                                        setIsNotificationsOpen(false);
-                                    }}
-                                    onMarkAllAsRead={onMarkAllNotificationsAsRead}
-                                    onClearAll={onClearAllNotifications}
-                                />
+                        <button 
+                            onClick={onCartClick} 
+                            className="relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#02325a] focus:ring-cyan-400 rounded-full"
+                        >
+                            <CartIcon className="h-10 w-10 p-1.5 rounded-full text-white border-2 border-[#3e90a6]" />
+                            {cartItemCount > 0 && (
+                                <span className="absolute top-1 right-1 block h-4 w-4 transform rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center ring-2 ring-[#02325a]">
+                                    {cartItemCount}
+                                </span>
                             )}
-                        </div>
+                        </button>
                     )}
 
 

@@ -331,7 +331,7 @@ const ListingForm: React.FC<ListingFormProps> = ({ onClose, currentUser, editing
         if (!isEditing && !currentUser.location && !location) return;
 
         onStageAndReset([data], location);
-        alert('Board(s) added to cart! Review in header cart or Pay & List to finish.');
+        alert('Board added to cart! Click the cart icon in the header to review or proceed to payment.');
         resetForm();
     };
 

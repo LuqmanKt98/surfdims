@@ -697,18 +697,23 @@ const App: React.FC = () => {
         setIsPaymentModalOpen(true);
     }, []);
 
-    const handleUpdateBoard = useCallback(async (updatedBoard: Surfboard) => {
-        try {
-            await updateDoc(doc(db, "boards", updatedBoard.id), updatedBoard as any);
-            setIsListingFormOpen(false);
-            setEditingBoard(null);
-            setSelectedBoardId(updatedBoard.id);
-            alert('Your listing has been updated!');
-        } catch (error) {
-            console.error("Error updating board", error);
-            alert("Failed to update listing.");
+    const handleRemoveStagedBoard = useCallback(async (index: number) => {
+        const updatedBoards = stagedNewBoards.filter((_, i) => i !== index);
+        setStagedNewBoards(updatedBoards);
+
+        // Update Firebase
+        if (currentUser) {
+            try {
+                await setDoc(doc(db, "carts", currentUser.id), {
+                    items: updatedBoards,
+                    location: stagedLocation,
+                    updatedAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Failed to update cart in Firebase:", error);
+            }
         }
-    }, []);
+    }, [stagedNewBoards, stagedLocation, currentUser]);
 
     const handleBrandingUpdate = useCallback(async (newBranding: BrandingState) => {
         // Optimistic update
@@ -989,21 +994,69 @@ const App: React.FC = () => {
         // DON'T clear staged boards - they should persist until payment or explicit clear
     };
 
-    const handleRemoveStagedBoard = useCallback(async (index: number) => {
-        const updatedBoards = stagedNewBoards.filter((_, i) => i !== index);
-        setStagedNewBoards(updatedBoards);
+    const handleEditStagedBoard = useCallback(async (index: number) => {
+        const boardToEdit = stagedNewBoards[index];
+        if (!boardToEdit) return;
+        
+        // Store the index for later update
+        const editIndex = index;
+        
+        // Create a temporary board object for editing
+        const tempBoard = { ...boardToEdit, id: `editing-${editIndex}` } as Surfboard;
+        
+        // Set up a custom update handler that updates the staged board instead of Firestore
+        const originalUpdateHandler = handleUpdateBoard;
+        
+        // Override the update handler temporarily
+        (window as any).__editingStagedBoardIndex = editIndex;
+        
+        setEditingBoard(tempBoard);
+        setIsListingFormOpen(true);
+        setIsStagedCartOpen(false);
+    }, [stagedNewBoards]);
 
-        // Update Firebase
-        if (currentUser) {
-            try {
-                await setDoc(doc(db, "carts", currentUser.id), {
-                    items: updatedBoards,
-                    location: stagedLocation,
-                    updatedAt: serverTimestamp()
-                });
-            } catch (error) {
-                console.error("Failed to update cart in Firebase:", error);
+    const handleUpdateBoard = useCallback(async (updatedBoard: Surfboard) => {
+        // Check if we're editing a staged board
+        const editingIndex = (window as any).__editingStagedBoardIndex;
+        
+        if (editingIndex !== undefined && editingIndex !== null) {
+            // Update staged board in cart
+            const { id, sellerId, listedDate, status, type, isPaid, expiresAt, ...boardData } = updatedBoard;
+            const updatedBoards = [...stagedNewBoards];
+            updatedBoards[editingIndex] = boardData;
+            setStagedNewBoards(updatedBoards);
+            
+            // Update Firebase cart
+            if (currentUser) {
+                try {
+                    await setDoc(doc(db, "carts", currentUser.id), {
+                        items: updatedBoards,
+                        location: stagedLocation,
+                        updatedAt: serverTimestamp()
+                    });
+                } catch (error) {
+                    console.error("Failed to update cart in Firebase:", error);
+                }
             }
+            
+            // Clean up
+            delete (window as any).__editingStagedBoardIndex;
+            setIsListingFormOpen(false);
+            setEditingBoard(null);
+            alert('Cart item updated successfully!');
+            return;
+        }
+        
+        // Normal board update (existing listing in Firestore)
+        try {
+            await updateDoc(doc(db, "boards", updatedBoard.id), updatedBoard as any);
+            setIsListingFormOpen(false);
+            setEditingBoard(null);
+            setSelectedBoardId(updatedBoard.id);
+            alert('Your listing has been updated!');
+        } catch (error) {
+            console.error("Error updating board", error);
+            alert("Failed to update listing.");
         }
     }, [stagedNewBoards, stagedLocation, currentUser]);
 
@@ -1704,6 +1757,7 @@ const App: React.FC = () => {
                     <StagedBoardsCart
                         stagedBoards={stagedNewBoards}
                         onRemoveBoard={handleRemoveStagedBoard}
+                        onEditBoard={handleEditStagedBoard}
                         onClearAll={handleClearStagedBoards}
                         onProceedToPayment={handleProceedToPaymentFromCart}
                         currencySymbol={getCurrencySymbol(currentUser.country)}
@@ -1995,6 +2049,7 @@ const App: React.FC = () => {
                 <StagedBoardsCart
                     stagedBoards={stagedNewBoards}
                     onRemoveBoard={handleRemoveStagedBoard}
+                    onEditBoard={handleEditStagedBoard}
                     onClearAll={handleClearStagedBoards}
                     onProceedToPayment={handleProceedToPaymentFromCart}
                     currencySymbol={getCurrencySymbol(currentUser.country)}

@@ -665,8 +665,27 @@ const App: React.FC = () => {
         }
     }, [stagedNewBoards, stagedLocation, currentUser]);
 
-    const handleStageAndPay = useCallback((finalBoards: Omit<Surfboard, 'id'>[], location?: { region: string; suburb: string; }) => {
+    const handleStageAndPay = useCallback(async (finalBoards: Omit<Surfboard, 'id'>[], location?: { region: string; suburb: string; }) => {
         const allBoardsToPay = [...stagedNewBoards, ...finalBoards];
+        setStagedNewBoards(allBoardsToPay);
+
+        if (location) {
+            setStagedLocation(location);
+        }
+
+        // Save to Firebase
+        if (currentUser) {
+            try {
+                await setDoc(doc(db, "carts", currentUser.id), {
+                    items: allBoardsToPay,
+                    location: location || stagedLocation,
+                    updatedAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Failed to save cart to Firebase in StageAndPay:", error);
+            }
+        }
+
         setBoardsForPayment(allBoardsToPay);
 
         if (currentUser) {
@@ -677,14 +696,9 @@ const App: React.FC = () => {
             setPaymentDescription(`${totalBoardCount} paid listing(s)`)
         }
 
-        if (location) {
-            setStagedLocation(location);
-        }
-
-        setStagedNewBoards([]);
         setIsListingFormOpen(false);
         setIsPaymentModalOpen(true);
-    }, [stagedNewBoards, currentUser]);
+    }, [stagedNewBoards, currentUser, stagedLocation]);
 
     const handleDonateAndList = useCallback((board: Omit<Surfboard, 'id'>, donationAmount: number, location?: { region: string; suburb: string; }) => {
         setStagedUsedBoard(board);
@@ -997,19 +1011,19 @@ const App: React.FC = () => {
     const handleEditStagedBoard = useCallback(async (index: number) => {
         const boardToEdit = stagedNewBoards[index];
         if (!boardToEdit) return;
-        
+
         // Store the index for later update
         const editIndex = index;
-        
+
         // Create a temporary board object for editing
         const tempBoard = { ...boardToEdit, id: `editing-${editIndex}` } as Surfboard;
-        
+
         // Set up a custom update handler that updates the staged board instead of Firestore
         const originalUpdateHandler = handleUpdateBoard;
-        
+
         // Override the update handler temporarily
         (window as any).__editingStagedBoardIndex = editIndex;
-        
+
         setEditingBoard(tempBoard);
         setIsListingFormOpen(true);
         setIsStagedCartOpen(false);
@@ -1018,14 +1032,14 @@ const App: React.FC = () => {
     const handleUpdateBoard = useCallback(async (updatedBoard: Surfboard) => {
         // Check if we're editing a staged board
         const editingIndex = (window as any).__editingStagedBoardIndex;
-        
+
         if (editingIndex !== undefined && editingIndex !== null) {
             // Update staged board in cart
             const { id, sellerId, listedDate, status, type, isPaid, expiresAt, ...boardData } = updatedBoard;
             const updatedBoards = [...stagedNewBoards];
             updatedBoards[editingIndex] = boardData;
             setStagedNewBoards(updatedBoards);
-            
+
             // Update Firebase cart
             if (currentUser) {
                 try {
@@ -1038,7 +1052,7 @@ const App: React.FC = () => {
                     console.error("Failed to update cart in Firebase:", error);
                 }
             }
-            
+
             // Clean up
             delete (window as any).__editingStagedBoardIndex;
             setIsListingFormOpen(false);
@@ -1046,7 +1060,7 @@ const App: React.FC = () => {
             alert('Cart item updated successfully!');
             return;
         }
-        
+
         // Normal board update (existing listing in Firestore)
         try {
             await updateDoc(doc(db, "boards", updatedBoard.id), updatedBoard as any);
@@ -1718,7 +1732,7 @@ const App: React.FC = () => {
                     }}
                     onAccountSettingsClick={() => setIsAccountSettingsOpen(true)}
                     onCartClick={() => setIsStagedCartOpen(true)}
-                    cartItemCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
+                    cartItemCount={stagedNewBoards.length}
                     onFaqClick={() => setIsFaqOpen(true)}
                     onContactClick={() => setIsContactOpen(true)}
                     onAboutUsClick={() => setIsAboutUsOpen(false)}
@@ -1797,7 +1811,7 @@ const App: React.FC = () => {
                 onAboutUsClick={() => setIsAboutUsOpen(true)}
                 onAdminClick={() => setIsAdminPageOpen(true)}
                 onCartClick={() => setIsStagedCartOpen(true)}
-                cartItemCount={stagedNewBoards.reduce((count, board) => count + board.dimensions.length, 0)}
+                cartItemCount={stagedNewBoards.length}
             />
 
             {currentUser && !currentUser.isVerified && verificationStatus !== 'verifying' && currentUser.role !== 'admin' && (

@@ -34,23 +34,25 @@ const StagedBoardsCart: React.FC<StagedBoardsCartProps> = ({
     const totalAmount = boardFee * totalBoardCount;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-end">
-            <div className="bg-white w-full max-w-md h-full shadow-2xl overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden animate-fade-in-down">
                 {/* Header */}
-                <div className="sticky top-0 bg-white p-6 flex items-center gap-4">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
+                <div className="p-6 flex items-center justify-between border-b border-gray-100">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900">Your Cart</h2>
                     </div>
-                    <h2 className="text-3xl font-bold text-gray-900 flex-1">Your Cart</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
                         <XIcon />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="p-4">
+                <div className="p-6">
                     {stagedBoards.length === 0 ? (
                         <div className="text-center py-12">
                             <p className="text-gray-500 text-lg">No boards staged yet</p>
@@ -61,50 +63,56 @@ const StagedBoardsCart: React.FC<StagedBoardsCartProps> = ({
                     ) : (
                         <>
                             {/* Staged Boards List */}
-                            <div className="space-y-3 mb-6">
-                                {stagedBoards.map((board, index) => (
-                                    <div key={index} className="bg-gray-50 rounded-lg p-4">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex-1">
-                                                <h3 className="text-xl font-bold text-gray-900">
+                            <div className="space-y-4 mb-8">
+                                {stagedBoards.map((board, index) => {
+                                    const boardListingFee = boardFee * board.dimensions.length;
+                                    return (
+                                        <div key={index} className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-900 leading-tight">
                                                     {board.brand}
                                                 </h3>
-                                                <p className="text-gray-600 mt-1">
-                                                    {board.model}
+                                                <p className="text-gray-500 text-sm">
+                                                    {board.model || 'Brand'}
                                                 </p>
-                                                <p className="text-blue-600 text-sm mt-2">
-                                                    {board.dimensions.length} size{board.dimensions.length > 1 ? 's' : ''} listed
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xl font-bold text-gray-900">
-                                                    {currencySymbol}{(board.price * board.dimensions.length).toFixed(2)}
-                                                </span>
-                                                <button
+                                                <button 
                                                     onClick={() => onEditBoard(index)}
-                                                    className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded transition"
-                                                    title="Edit listing"
+                                                    className="text-blue-600 text-sm mt-1 hover:underline font-medium"
                                                 >
-                                                    <EditIcon />
+                                                    {board.dimensions.length} size{board.dimensions.length > 1 ? 's' : ''} listed
                                                 </button>
-                                                <button
-                                                    onClick={() => onRemoveBoard(index)}
-                                                    className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded transition"
-                                                    title="Delete listing"
-                                                >
-                                                    <TrashIcon />
-                                                </button>
+                                            </div>
+                                            <div className="flex items-center gap-6">
+                                                <span className="text-lg font-bold text-gray-900">
+                                                    {currencySymbol}{boardListingFee.toFixed(2)}
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => onEditBoard(index)}
+                                                        className="text-blue-600 hover:text-blue-800 transition p-1"
+                                                        title="Edit listing"
+                                                    >
+                                                        <EditIcon />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => onRemoveBoard(index)}
+                                                        className="text-red-500 hover:text-red-700 transition p-1"
+                                                        title="Delete listing"
+                                                    >
+                                                        <TrashIcon />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
 
                             {/* Summary */}
-                            <div className="mb-6">
+                            <div className="mb-8 pt-4 border-t border-gray-100">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-2xl font-bold text-gray-900">Total:</span>
-                                    <span className="text-3xl font-bold text-blue-600">{currencySymbol}{totalAmount.toFixed(2)}</span>
+                                    <span className="text-xl font-bold text-gray-900">Total:</span>
+                                    <span className="text-2xl font-bold text-blue-600">{currencySymbol}{totalAmount.toFixed(2)}</span>
                                 </div>
                             </div>
 
@@ -118,7 +126,7 @@ const StagedBoardsCart: React.FC<StagedBoardsCartProps> = ({
                                 </button>
                                 <button
                                     onClick={onClose}
-                                    className="w-full py-3 px-4 text-gray-600 hover:text-gray-800 font-semibold rounded-lg transition focus:outline-none"
+                                    className="w-full text-center text-gray-500 hover:text-gray-800 font-medium transition focus:outline-none text-sm"
                                 >
                                     Keep Shopping
                                 </button>

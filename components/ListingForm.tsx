@@ -439,11 +439,9 @@ const ListingForm: React.FC<ListingFormProps> = ({ onClose, currentUser, editing
                                     </div>
                                 )}
                             </div>
-                            {!isEditing && (
-                                <button type="button" onClick={handleAddDimensionRow} className="mt-2 text-sm font-semibold text-[#0056b3] hover:underline">
-                                    + Add another size
-                                </button>
-                            )}
+                            <button type="button" onClick={handleAddDimensionRow} className="mt-2 text-sm font-semibold text-[#0056b3] hover:underline">
+                                + Add another size
+                            </button>
                         </div>
 
                         {/* Price & Fin Setup */}

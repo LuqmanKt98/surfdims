@@ -30,6 +30,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialView = 'l
             setView(initialView);
             setError(null);
             setSuccessMessage(null);
+            setIsLoading(false);
             setEmail('');
             setPassword('');
             setName('');

@@ -111,31 +111,146 @@ const App: React.FC = () => {
         setVisibleListingsCount(15);
     }, [filters, view, sortOrder]);
 
-    // Load staged boards from localStorage on mount
+    // Load staged boards from localStorage on mount (Guest or User)
     useEffect(() => {
-        if (!currentUser) return;
+        // We load from a generic key initially or potentially migrate
+        // Strategy: 
+        // 1. If user: try user key.
+        // 2. If no user: try simple 'guest' key.
+        // However, on mount we might not know user yet (loading).
+        // So we wait for auth check to finish? No, we want instant access.
+        // Let's rely on the cart sync effect to handle the transition.
+
+        // Actually, simple "Guest Cart" -> "User Cart" flow:
+        // Load whatever represents the "current device cart" first.
         try {
-            const saved = localStorage.getItem(`surfdims-staged-boards-${currentUser.id}`);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) {
-                    setStagedNewBoards(parsed);
+            // Check for temporary guest cart first if no user confirmed yet
+            const guestCart = localStorage.getItem(`surfdims-cart-guest`);
+            if (guestCart && !currentUser) {
+                const parsed = JSON.parse(guestCart);
+                if (Array.isArray(parsed)) setStagedNewBoards(parsed);
+            }
+        } catch (e) { console.error(e); }
+    }, []);
+
+    // Sync Cart Effect (The Brain)
+    // Handles: 
+    // 1. Loading from Firebase when User logs in
+    // 2. Merging Guest Cart to Firebase on login
+    // 3. Persisting to LocalStorage (User or Guest)
+    useEffect(() => {
+        // If not logged in, we are in "Guest Mode".
+        if (!currentUser) {
+            // In guest mode, we just persist state to local storage.
+            // But we don't want to overwrite if state is empty initially?
+            // We rely on initial load.
+            try {
+                if (stagedNewBoards.length > 0) {
+                    localStorage.setItem(`surfdims-cart-guest`, JSON.stringify(stagedNewBoards));
+                }
+            } catch (e) { }
+            return;
+        }
+
+        // If logged in:
+        // 1. Listen to Firebase Cart.
+        const cartDocRef = doc(db, "carts", currentUser.id);
+        const unsubscribe = onSnapshot(cartDocRef, async (docSnapshot) => {
+            if (docSnapshot.exists()) {
+                const cartData = docSnapshot.data();
+                // Update local state from server
+                if (cartData.items && Array.isArray(cartData.items)) {
+                    // Check if we have a pending "guest cart" to merge
+                    const guestCartStr = localStorage.getItem(`surfdims-cart-guest`);
+                    if (guestCartStr) {
+                        try {
+                            const guestItems = JSON.parse(guestCartStr);
+                            if (Array.isArray(guestItems) && guestItems.length > 0) {
+                                // Merge needed!
+                                // For simplicity: Add guest items to server items, then save back to server.
+                                // To avoid infinite loop (write -> snapshot), we do this once then clear guest cart.
+                                const mergedItems = [...cartData.items, ...guestItems];
+                                console.log("Merging guest cart to user cart...");
+
+                                // Clear guest cart first to prevent re-merge
+                                localStorage.removeItem(`surfdims-cart-guest`);
+
+                                // Write merged
+                                await setDoc(cartDocRef, {
+                                    items: mergedItems,
+                                    updatedAt: serverTimestamp(),
+                                    location: cartData.location || stagedLocation
+                                }, { merge: true });
+
+                                // The snapshot will fire again with merged data, updating state.
+                                return;
+                            }
+                        } catch (e) { }
+                        localStorage.removeItem(`surfdims-cart-guest`); // Clear corrupt/empty
+                    }
+
+                    setStagedNewBoards(cartData.items);
+                }
+                if (cartData.location) {
+                    setStagedLocation(cartData.location);
+                }
+            } else {
+                // No cart on server. Check for guest cart to migrate.
+                const guestCartStr = localStorage.getItem(`surfdims-cart-guest`);
+                if (guestCartStr) {
+                    try {
+                        const guestItems = JSON.parse(guestCartStr);
+                        if (Array.isArray(guestItems)) {
+                            // Migrate guest -> server
+                            await setDoc(cartDocRef, { items: guestItems, updatedAt: serverTimestamp() });
+                            localStorage.removeItem(`surfdims-cart-guest`);
+                        }
+                    } catch (e) { }
                 }
             }
-        } catch (e) {
-            console.error('Failed to load staged boards from localStorage', e);
-        }
-    }, [currentUser]);
+        }, (error) => {
+            // If permission denied likely due to logout, ignore.
+            if (error.code !== 'permission-denied') {
+                console.error("Cart sync error", error);
+            }
+        });
 
-    // Save staged boards to localStorage whenever they change
-    useEffect(() => {
-        if (!currentUser) return;
+        return () => unsubscribe();
+    }, [currentUser]); // Depend on currentUser to switch modes
+
+    // Generic Helper to Save Cart (Local + Cloud)
+    // This is the "Pro" way to handle the "save" action: Update Local First, Sync Remote Safely.
+    const saveCart = useCallback(async (newItems: Omit<Surfboard, 'id'>[], newLocation: { region: string; suburb: string } | null = null) => {
+        // 1. Update React State (Instant UI feedback)
+        setStagedNewBoards(newItems);
+        const loc = newLocation || stagedLocation;
+        if (newLocation) setStagedLocation(newLocation);
+
+        // 2. Persist to Local Storage (Guest or User Backup)
         try {
-            localStorage.setItem(`surfdims-staged-boards-${currentUser.id}`, JSON.stringify(stagedNewBoards));
-        } catch (e) {
-            console.error('Failed to save staged boards to localStorage', e);
+            const key = currentUser ? `surfdims-cart-backup-${currentUser.id}` : `surfdims-cart-guest`;
+            localStorage.setItem(key, JSON.stringify(newItems));
+        } catch (e) { console.error(e); }
+
+        // 3. Sync to Firebase (If User)
+        // We use auth.currentUser to be sure of the state at this exact moment
+        if (auth.currentUser) {
+            try {
+                await setDoc(doc(db, "carts", auth.currentUser.uid), {
+                    items: newItems,
+                    location: loc,
+                    updatedAt: serverTimestamp()
+                });
+            } catch (error: any) {
+                // Gracefully handle logout race conditions
+                if (error.code === 'permission-denied') {
+                    console.warn("Cart sync skipped (user logged out?). Local changes kept.");
+                } else {
+                    console.error("Failed to sync cart", error);
+                }
+            }
         }
-    }, [stagedNewBoards, currentUser]);
+    }, [currentUser, stagedLocation]);
 
     // Listen for PWA install prompt
     useEffect(() => {
@@ -339,54 +454,8 @@ const App: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
-    // Sync Cart with Firebase
-    useEffect(() => {
-        if (!currentUser) {
-            setStagedNewBoards([]);
-            setStagedLocation(null);
-            return;
-        }
-
-        const cartDocRef = doc(db, "carts", currentUser.id);
-        const unsubscribe = onSnapshot(cartDocRef, (docSnapshot) => {
-            if (docSnapshot.exists()) {
-                const cartData = docSnapshot.data();
-                if (cartData.items && Array.isArray(cartData.items)) {
-                    setStagedNewBoards(cartData.items);
-                }
-                if (cartData.location) {
-                    setStagedLocation(cartData.location);
-                }
-            } else {
-                // No cart in Firebase yet - try migrating from localStorage
-                try {
-                    const saved = localStorage.getItem(`surfdims-staged-boards-${currentUser.id}`);
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        if (Array.isArray(parsed) && parsed.length > 0) {
-                            // Migrate to Firebase
-                            setDoc(cartDocRef, {
-                                items: parsed,
-                                location: stagedLocation,
-                                updatedAt: serverTimestamp()
-                            }).then(() => {
-                                console.log('Migrated cart from localStorage to Firebase');
-                                localStorage.removeItem(`surfdims-staged-boards-${currentUser.id}`);
-                            }).catch(err => {
-                                console.error('Failed to migrate cart to Firebase:', err);
-                            });
-                        }
-                    }
-                } catch (e) {
-                    console.error('Failed to load/migrate cart from localStorage', e);
-                }
-            }
-        }, (error) => {
-            console.error('Error listening to cart:', error);
-        });
-
-        return () => unsubscribe();
-    }, [currentUser]);
+    // Cart Sync Logic is now handled in the unified useEffect above.
+    // Previous "Sync Cart with Firebase" useEffect removed to avoid duplication/conflict.
 
     // Ad Rotation timer
     useEffect(() => {
@@ -645,46 +714,12 @@ const App: React.FC = () => {
 
     const handleStageAndReset = useCallback(async (newBoards: Omit<Surfboard, 'id'>[], location?: { region: string; suburb: string; }) => {
         const updatedBoards = [...stagedNewBoards, ...newBoards];
-        setStagedNewBoards(updatedBoards);
-
-        if (location && !stagedLocation) {
-            setStagedLocation(location);
-        }
-
-        // Save to Firebase
-        if (currentUser) {
-            try {
-                await setDoc(doc(db, "carts", currentUser.id), {
-                    items: updatedBoards,
-                    location: location || stagedLocation,
-                    updatedAt: serverTimestamp()
-                });
-            } catch (error) {
-                console.error("Failed to save cart to Firebase:", error);
-            }
-        }
-    }, [stagedNewBoards, stagedLocation, currentUser]);
+        await saveCart(updatedBoards, location);
+    }, [stagedNewBoards, saveCart]);
 
     const handleStageAndPay = useCallback(async (finalBoards: Omit<Surfboard, 'id'>[], location?: { region: string; suburb: string; }) => {
         const allBoardsToPay = [...stagedNewBoards, ...finalBoards];
-        setStagedNewBoards(allBoardsToPay);
-
-        if (location) {
-            setStagedLocation(location);
-        }
-
-        // Save to Firebase
-        if (currentUser) {
-            try {
-                await setDoc(doc(db, "carts", currentUser.id), {
-                    items: allBoardsToPay,
-                    location: location || stagedLocation,
-                    updatedAt: serverTimestamp()
-                });
-            } catch (error) {
-                console.error("Failed to save cart to Firebase in StageAndPay:", error);
-            }
-        }
+        await saveCart(allBoardsToPay, location);
 
         setBoardsForPayment(allBoardsToPay);
 
@@ -698,7 +733,7 @@ const App: React.FC = () => {
 
         setIsListingFormOpen(false);
         setIsPaymentModalOpen(true);
-    }, [stagedNewBoards, currentUser, stagedLocation]);
+    }, [stagedNewBoards, currentUser, saveCart]);
 
     const handleDonateAndList = useCallback((board: Omit<Surfboard, 'id'>, donationAmount: number, location?: { region: string; suburb: string; }) => {
         setStagedUsedBoard(board);
@@ -713,21 +748,8 @@ const App: React.FC = () => {
 
     const handleRemoveStagedBoard = useCallback(async (index: number) => {
         const updatedBoards = stagedNewBoards.filter((_, i) => i !== index);
-        setStagedNewBoards(updatedBoards);
-
-        // Update Firebase
-        if (currentUser) {
-            try {
-                await setDoc(doc(db, "carts", currentUser.id), {
-                    items: updatedBoards,
-                    location: stagedLocation,
-                    updatedAt: serverTimestamp()
-                });
-            } catch (error) {
-                console.error("Failed to update cart in Firebase:", error);
-            }
-        }
-    }, [stagedNewBoards, stagedLocation, currentUser]);
+        await saveCart(updatedBoards);
+    }, [stagedNewBoards, saveCart]);
 
     const handleBrandingUpdate = useCallback(async (newBranding: BrandingState) => {
         // Optimistic update
@@ -1038,20 +1060,8 @@ const App: React.FC = () => {
             const { id, ...boardData } = updatedBoard;
             const updatedBoards = [...stagedNewBoards];
             updatedBoards[editingIndex] = boardData;
-            setStagedNewBoards(updatedBoards);
 
-            // Update Firebase cart
-            if (currentUser) {
-                try {
-                    await setDoc(doc(db, "carts", currentUser.id), {
-                        items: updatedBoards,
-                        location: stagedLocation,
-                        updatedAt: serverTimestamp()
-                    });
-                } catch (error) {
-                    console.error("Failed to update cart in Firebase:", error);
-                }
-            }
+            await saveCart(updatedBoards);
 
             // Clean up
             delete (window as any).__editingStagedBoardIndex;
@@ -1076,20 +1086,10 @@ const App: React.FC = () => {
 
     const handleClearStagedBoards = useCallback(async () => {
         if (window.confirm('Are you sure you want to clear all staged boards?')) {
-            setStagedNewBoards([]);
-            setStagedLocation(null);
+            await saveCart([]);
             setIsStagedCartOpen(false);
-
-            // Clear from Firebase
-            if (currentUser) {
-                try {
-                    await deleteDoc(doc(db, "carts", currentUser.id));
-                } catch (error) {
-                    console.error("Failed to clear cart from Firebase:", error);
-                }
-            }
         }
-    }, [currentUser]);
+    }, [saveCart]);
 
     const handleProceedToPaymentFromCart = useCallback(() => {
         if (stagedNewBoards.length === 0) {

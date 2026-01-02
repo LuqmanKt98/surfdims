@@ -1035,7 +1035,7 @@ const App: React.FC = () => {
 
         if (editingIndex !== undefined && editingIndex !== null) {
             // Update staged board in cart
-            const { id, sellerId, listedDate, status, type, isPaid, expiresAt, ...boardData } = updatedBoard;
+            const { id, ...boardData } = updatedBoard;
             const updatedBoards = [...stagedNewBoards];
             updatedBoards[editingIndex] = boardData;
             setStagedNewBoards(updatedBoards);
@@ -1752,6 +1752,9 @@ const App: React.FC = () => {
                     onBrandingUpdate={handleBrandingUpdate}
                     onAppSettingsUpdate={handleAppSettingsUpdate}
                     onGiveawayImagesUpdate={handleGiveawayImagesUpdate}
+                    adminAds={adminAds}
+                    onAdminAdsUpdate={handleAdminAdsUpdate}
+                    onClose={() => navigate('/')}
                 />
 
                 {isFaqOpen && <FaqPage onClose={() => setIsFaqOpen(false)} onContactClick={handleOpenContactFromFaq} onOpenLearnMore={handleOpenLearnMoreFromFaq} onInstallClick={handleInstallPrompt} canInstall={!!deferredInstallPrompt} />}
